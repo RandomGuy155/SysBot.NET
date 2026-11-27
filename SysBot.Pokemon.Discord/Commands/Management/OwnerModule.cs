@@ -49,20 +49,84 @@ public class OwnerModule(SysCordContext cord) : InteractionModuleBase<SocketInte
                 ? (ProgramMode)g
                 : (cord.HubConfig.Mode != ProgramMode.None ? cord.HubConfig.Mode : prog.Mode);
 
-            // Ensure a channel is only assigned to one game at a time.
-            foreach (var (otherMode, settings) in prog.GameHubs)
+            // A channel can only belong to one game at a time; ask before taking it from another game.
+            var assignedElsewhere = prog.GameHubs
+                .Where(kv => kv.Key != targetMode && kv.Value.ChannelWhitelist.Contains(c.Id))
+                .Select(kv => kv.Key)
+                .ToList();
+
+            if (assignedElsewhere.Count > 0)
             {
-                if (otherMode != targetMode)
-                    settings.ChannelWhitelist.RemoveAll(z => z.ID == c.Id);
+                var prompt = $"#{c.Name} is already assigned to **{string.Join(", ", assignedElsewhere)}**. " +
+                             $"Move it to **{targetMode}**? It will be removed from the other game.";
+                var buttons = new ComponentBuilder()
+                    .WithButton("Move", $"{MoveChannelId}:{c.Id}:{(int)targetMode}", ButtonStyle.Danger)
+                    .WithButton("Cancel", CancelMoveChannelId, ButtonStyle.Secondary)
+                    .Build();
+                await RespondAsync(prompt, components: buttons, ephemeral: true).ConfigureAwait(false);
+                return;
             }
 
-            prog.GetGameHubSettings(targetMode).ChannelWhitelist.AddIfNew(reference);
+            AssignChannel(prog, c.Id, c.Name, targetMode);
             await RespondAsync($"Assigned #{c.Name} to **{targetMode}**.").ConfigureAwait(false);
             return;
         }
 
         cord.Settings.ChannelWhitelist.AddIfNew(reference);
         await RespondAsync("Done.").ConfigureAwait(false);
+    }
+
+    private const string MoveChannelId = "owner-move-channel";
+    private const string CancelMoveChannelId = "owner-move-channel-cancel";
+
+    [ComponentInteraction($"{MoveChannelId}:*:*", ignoreGroupNames: true)]
+    public async Task ConfirmMoveChannel(string channelId, string game)
+    {
+        if (cord.ProgramConfig is not { } prog || !ulong.TryParse(channelId, out var id) || !int.TryParse(game, out var mode))
+        {
+            await RespondAsync("That request is no longer valid.", ephemeral: true).ConfigureAwait(false);
+            return;
+        }
+
+        var targetMode = (ProgramMode)mode;
+        var name = Context.Channel.Id == id ? Context.Channel.Name : channelId;
+        var movedFrom = AssignChannel(prog, id, name, targetMode);
+
+        var msg = movedFrom.Count > 0
+            ? $"Moved #{name} from **{string.Join(", ", movedFrom)}** to **{targetMode}**."
+            : $"Assigned #{name} to **{targetMode}**.";
+        await ((SocketMessageComponent)Context.Interaction).UpdateAsync(m =>
+        {
+            m.Content = msg;
+            m.Components = new ComponentBuilder().Build();
+        }).ConfigureAwait(false);
+    }
+
+    [ComponentInteraction(CancelMoveChannelId, ignoreGroupNames: true)]
+    public async Task CancelMoveChannel()
+    {
+        await ((SocketMessageComponent)Context.Interaction).UpdateAsync(m =>
+        {
+            m.Content = "Cancelled. The channel assignment was not changed.";
+            m.Components = new ComponentBuilder().Build();
+        }).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Assigns the channel to <paramref name="targetMode"/>, removing it from any other game's whitelist.
+    /// </summary>
+    /// <returns>The games the channel was removed from.</returns>
+    private List<ProgramMode> AssignChannel(ProgramConfig prog, ulong channelId, string channelName, ProgramMode targetMode)
+    {
+        var movedFrom = new List<ProgramMode>();
+        foreach (var (otherMode, settings) in prog.GameHubs)
+        {
+            if (otherMode != targetMode && settings.ChannelWhitelist.RemoveAll(z => z.ID == channelId) > 0)
+                movedFrom.Add(otherMode);
+        }
+
+        prog.GetGameHubSettings(targetMode).ChannelWhitelist.AddIfNew(GetReference(channelId, channelName));
+        return movedFrom;
     }
 
     [SlashCommand("remove-channel", "Removes this channel from the command whitelist.")]

@@ -1,6 +1,7 @@
 using System.Threading.Tasks;
 using Discord;
 using Discord.Interactions;
+using Discord.WebSocket;
 using PKHeX.Core;
 
 namespace SysBot.Pokemon.Discord;
@@ -40,9 +41,33 @@ public class QueueModule<T> : SlashModuleBase where T : PKM, new()
     [RequireSudo]
     public async Task ClearAllTradesAsync()
     {
-        Info.ClearAllQueues();
-        await RespondAsync("Cleared all in the queue.").ConfigureAwait(false);
+        var buttons = new ComponentBuilder()
+            .WithButton("Clear all", ClearAllId, ButtonStyle.Danger)
+            .WithButton("Cancel", ClearAllCancelId, ButtonStyle.Secondary)
+            .Build();
+        await RespondAsync("Clear **everyone** from the trade queues? This cannot be undone.", components: buttons, ephemeral: true).ConfigureAwait(false);
     }
+
+    private const string ClearAllId = "queue-clear-all";
+    private const string ClearAllCancelId = "queue-clear-all-cancel";
+
+    [ComponentInteraction(ClearAllId, ignoreGroupNames: true)]
+    [RequireSudo]
+    public async Task ConfirmClearAllAsync()
+    {
+        Info.ClearAllQueues();
+        await ReplacePrompt("Cleared all in the queue.").ConfigureAwait(false);
+    }
+
+    [ComponentInteraction(ClearAllCancelId, ignoreGroupNames: true)]
+    [RequireSudo]
+    public Task CancelClearAllAsync() => ReplacePrompt("Cancelled. The queues were not changed.");
+
+    private Task ReplacePrompt(string content) => ((SocketMessageComponent)Context.Interaction).UpdateAsync(m =>
+    {
+        m.Content = content;
+        m.Components = new ComponentBuilder().Build();
+    });
 
     [SlashCommand("toggle", "Toggles on/off the ability to join the trade queue.")]
     [DefaultMemberPermissions(GuildPermission.PrioritySpeaker)] // basic gate to hide the commands from untrusted users, but not a full sudo check
@@ -63,8 +88,16 @@ public class QueueModule<T> : SlashModuleBase where T : PKM, new()
     public async Task ChangeQueueModeAsync(
         [Summary(nameof(mode), "The mode to set for queueing.")] QueueOpening mode)
     {
-        SysCord<T>.Runner.Hub.Config.Queues.QueueToggleMode = mode;
-        await RespondAsync($"Changed queue mode to {mode}.").ConfigureAwait(false);
+        var queues = SysCord<T>.Runner.Hub.Config.Queues;
+        var old = queues.QueueToggleMode;
+        if (old == mode)
+        {
+            await RespondAsync($"Queue mode is already {mode}.").ConfigureAwait(false);
+            return;
+        }
+
+        queues.QueueToggleMode = mode;
+        await RespondAsync($"Changed queue mode from {old} to {mode}.").ConfigureAwait(false);
     }
 
     [SlashCommand("list", "Sends the list of users in the queue by direct message.")]

@@ -17,16 +17,16 @@ public class OwnerModule(SysCordContext cord) : InteractionModuleBase<SocketInte
     [CommandContextType(InteractionContextType.Guild, InteractionContextType.PrivateChannel)]
     public async Task AddSudo(IUser user)
     {
-        cord.Settings.GlobalSudoList.AddIfNew(GetReference(user.Id, user.GlobalName));
-        await RespondAsync("Done.").ConfigureAwait(false);
+        var added = cord.Settings.GlobalSudoList.AddIfNew(GetReference(user.Id, user.GlobalName));
+        await RespondAsync(added ? $"Added {user.Mention} to global sudo." : $"{user.Mention} is already in global sudo.", allowedMentions: AllowedMentions.None).ConfigureAwait(false);
     }
 
     [SlashCommand("remove-sudo", "Removes a user from global sudo.")]
     [CommandContextType(InteractionContextType.Guild, InteractionContextType.PrivateChannel)]
     public async Task RemoveSudo(IUser user)
     {
-        cord.Settings.GlobalSudoList.RemoveAll(z => z.ID == user.Id);
-        await RespondAsync("Done.").ConfigureAwait(false);
+        var removed = cord.Settings.GlobalSudoList.RemoveAll(z => z.ID == user.Id) > 0;
+        await RespondAsync(removed ? $"Removed {user.Mention} from global sudo." : $"{user.Mention} was not in global sudo.", allowedMentions: AllowedMentions.None).ConfigureAwait(false);
     }
 
     [SlashCommand("add-channel", "Assigns this channel to a game's command whitelist.")]
@@ -61,9 +61,15 @@ public class OwnerModule(SysCordContext cord) : InteractionModuleBase<SocketInte
                              $"Move it to **{targetMode}**? It will be removed from the other game.";
                 var buttons = new ComponentBuilder()
                     .WithButton("Move", $"{MoveChannelId}:{c.Id}:{(int)targetMode}", ButtonStyle.Danger)
-                    .WithButton("Cancel", CancelMoveChannelId, ButtonStyle.Secondary)
+                    .WithButton("Cancel", CancelId, ButtonStyle.Secondary)
                     .Build();
                 await RespondAsync(prompt, components: buttons, ephemeral: true).ConfigureAwait(false);
+                return;
+            }
+
+            if (prog.GetGameHubSettings(targetMode).ChannelWhitelist.Contains(c.Id))
+            {
+                await RespondAsync($"#{c.Name} is already assigned to **{targetMode}**.").ConfigureAwait(false);
                 return;
             }
 
@@ -72,12 +78,24 @@ public class OwnerModule(SysCordContext cord) : InteractionModuleBase<SocketInte
             return;
         }
 
-        cord.Settings.ChannelWhitelist.AddIfNew(reference);
-        await RespondAsync("Done.").ConfigureAwait(false);
+        var added = cord.Settings.ChannelWhitelist.AddIfNew(reference);
+        await RespondAsync(added ? $"Assigned #{c.Name}." : $"#{c.Name} is already assigned.").ConfigureAwait(false);
     }
 
     private const string MoveChannelId = "owner-move-channel";
-    private const string CancelMoveChannelId = "owner-move-channel-cancel";
+    private const string LeaveId = "owner-leave";
+    private const string ShutdownId = "owner-shutdown";
+    private const string CancelId = "owner-cancel";
+
+    /// <summary>Replaces the confirmation prompt with <paramref name="content"/> and removes its buttons.</summary>
+    private Task ReplacePrompt(string content) => ((SocketMessageComponent)Context.Interaction).UpdateAsync(m =>
+    {
+        m.Content = content;
+        m.Components = new ComponentBuilder().Build();
+    });
+
+    [ComponentInteraction(CancelId, ignoreGroupNames: true)]
+    public Task CancelAction() => ReplacePrompt("Cancelled. Nothing was changed.");
 
     [ComponentInteraction($"{MoveChannelId}:*:*", ignoreGroupNames: true)]
     public async Task ConfirmMoveChannel(string channelId, string game)
@@ -95,21 +113,7 @@ public class OwnerModule(SysCordContext cord) : InteractionModuleBase<SocketInte
         var msg = movedFrom.Count > 0
             ? $"Moved #{name} from **{string.Join(", ", movedFrom)}** to **{targetMode}**."
             : $"Assigned #{name} to **{targetMode}**.";
-        await ((SocketMessageComponent)Context.Interaction).UpdateAsync(m =>
-        {
-            m.Content = msg;
-            m.Components = new ComponentBuilder().Build();
-        }).ConfigureAwait(false);
-    }
-
-    [ComponentInteraction(CancelMoveChannelId, ignoreGroupNames: true)]
-    public async Task CancelMoveChannel()
-    {
-        await ((SocketMessageComponent)Context.Interaction).UpdateAsync(m =>
-        {
-            m.Content = "Cancelled. The channel assignment was not changed.";
-            m.Components = new ComponentBuilder().Build();
-        }).ConfigureAwait(false);
+        await ReplacePrompt(msg).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -154,46 +158,81 @@ public class OwnerModule(SysCordContext cord) : InteractionModuleBase<SocketInte
         await RespondAsync("Done.").ConfigureAwait(false);
     }
 
-    [SlashCommand("leave", "Leaves the current server.")]
-    [CommandContextType(InteractionContextType.Guild)]
-    public async Task Leave()
+    [SlashCommand("leave", "Leaves this server, a specific server, or every server the bot is in.")]
+    [CommandContextType(InteractionContextType.Guild, InteractionContextType.PrivateChannel)]
+    public async Task Leave(
+        [Summary(nameof(guildId), "ID of the server to leave. Leave blank for this server.")] string? guildId = null,
+        [Summary(nameof(all), "Leave every server the bot is in.")] bool all = false)
     {
-        await RespondAsync("Goodbye.").ConfigureAwait(false);
-        if (Context.Guild is not null) await Context.Guild.LeaveAsync().ConfigureAwait(false);
-    }
-
-    [SlashCommand("leave-guild", "Leaves a guild by ID.")]
-    public async Task LeaveGuild(string guildId)
-    {
-        if (!ulong.TryParse(guildId, out var id))
+        string target;
+        string description;
+        if (all)
         {
-            await RespondAsync("Please provide a valid Guild ID.").ConfigureAwait(false);
+            target = "all";
+            description = $"all {Context.Client.Guilds.Count} servers";
+        }
+        else if (guildId is not null)
+        {
+            if (!ulong.TryParse(guildId, out var id) || Context.Client.GetGuild(id) is not { } guild)
+            {
+                await RespondAsync($"Provided input ({guildId}) is not a valid guild ID or the bot is not in the specified guild.", ephemeral: true).ConfigureAwait(false);
+                return;
+            }
+            target = guild.Id.ToString();
+            description = guild.Name;
+        }
+        else if (Context.Guild is { } current)
+        {
+            target = current.Id.ToString();
+            description = current.Name;
+        }
+        else
+        {
+            await RespondAsync("Specify a guild ID when using this command outside of a server.", ephemeral: true).ConfigureAwait(false);
             return;
         }
 
-        var guild = Context.Client.Guilds.FirstOrDefault(x => x.Id == id);
-        if (guild is null)
+        var buttons = new ComponentBuilder()
+            .WithButton("Leave", $"{LeaveId}:{target}", ButtonStyle.Danger)
+            .WithButton("Cancel", CancelId, ButtonStyle.Secondary)
+            .Build();
+        await RespondAsync($"Leave **{description}**? The bot will need to be re-invited to rejoin.", components: buttons, ephemeral: true).ConfigureAwait(false);
+    }
+
+    [ComponentInteraction($"{LeaveId}:*", ignoreGroupNames: true)]
+    public async Task ConfirmLeave(string target)
+    {
+        List<SocketGuild> guilds = [];
+        if (target == "all")
+            guilds.AddRange(Context.Client.Guilds);
+        else if (ulong.TryParse(target, out var id) && Context.Client.GetGuild(id) is { } guild)
+            guilds.Add(guild);
+
+        if (guilds.Count == 0)
         {
-            await RespondAsync($"Provided input ({guildId}) is not a valid guild ID or the bot is not in the specified guild.").ConfigureAwait(false);
+            await RespondAsync("The bot is no longer in that server.", ephemeral: true).ConfigureAwait(false);
             return;
         }
 
-        await RespondAsync($"Leaving {guild}.").ConfigureAwait(false);
-        await guild.LeaveAsync().ConfigureAwait(false);
-    }
-
-    [SlashCommand("leave-all", "Leaves all servers the bot is currently in.")]
-    public async Task LeaveAll()
-    {
-        await RespondAsync("Leaving all servers.").ConfigureAwait(false);
-        foreach (var guild in Context.Client.Guilds) await guild.LeaveAsync().ConfigureAwait(false);
+        await ReplacePrompt(guilds.Count == 1 ? $"Leaving {guilds[0].Name}." : $"Leaving {guilds.Count} servers.").ConfigureAwait(false);
+        foreach (var g in guilds)
+            await g.LeaveAsync().ConfigureAwait(false);
     }
 
     [SlashCommand("shutdown", "Causes the entire process to end itself.")]
     public async Task ExitProgram()
     {
-        var emphasis = Format.Bold("Bot services are going offline.");
-        await RespondAsync($"Shutting down... goodbye! {emphasis}").ConfigureAwait(false);
+        var buttons = new ComponentBuilder()
+            .WithButton("Shut down", ShutdownId, ButtonStyle.Danger)
+            .WithButton("Cancel", CancelId, ButtonStyle.Secondary)
+            .Build();
+        await RespondAsync("Shut down the bot? It will stay offline until it is started again manually.", components: buttons, ephemeral: true).ConfigureAwait(false);
+    }
+
+    [ComponentInteraction(ShutdownId, ignoreGroupNames: true)]
+    public async Task ConfirmShutdown()
+    {
+        await ReplacePrompt($"Shutting down... goodbye! {Format.Bold("Bot services are going offline.")}").ConfigureAwait(false);
         Environment.Exit(0);
     }
 

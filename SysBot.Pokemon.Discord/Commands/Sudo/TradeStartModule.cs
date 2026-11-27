@@ -29,6 +29,8 @@ public class TradeStartModule<T> : SudoModuleBase where T : PKM, new()
         int count = 0;
         foreach (var channelAccess in settings.TradeStartingChannels)
         {
+            if (Channels.ContainsKey(channelAccess.ID))
+                continue;
             if (discord.GetChannel(channelAccess.ID) is not ISocketMessageChannel channel)
             {
                 LogUtil.LogInfo($"Failed to add logging to {channelAccess.Name}.");
@@ -59,7 +61,7 @@ public class TradeStartModule<T> : SudoModuleBase where T : PKM, new()
         }
 
         AddLogChannel(channel, channelId);
-        SysCordSettings.Settings.TradeStartingChannels.AddIfNew(GetReference(channel));
+        SysCord<T>.Runner.Hub.Config.Discord.TradeStartingChannels.AddIfNew(GetReference(channel));
         await RespondAsync("Added Start Notification output to this channel!").ConfigureAwait(false);
     }
 
@@ -89,7 +91,7 @@ public class TradeStartModule<T> : SudoModuleBase where T : PKM, new()
         var id = Context.Interaction.Channel.Id;
         if (Channels.TryGetValue(id, out var entry))
             Remove(entry);
-        SysCordSettings.Settings.TradeStartingChannels.RemoveAll(z => z.ID == id);
+        SysCord<T>.Runner.Hub.Config.Discord.TradeStartingChannels.RemoveAll(z => z.ID == id);
         await RespondAsync($"Start Notifications cleared from channel: {Context.Interaction.Channel.Name}").ConfigureAwait(false);
     }
 
@@ -100,7 +102,7 @@ public class TradeStartModule<T> : SudoModuleBase where T : PKM, new()
             SysCord<T>.Runner.Hub.Queues.Forwarders.Remove(entry.Messager);
 
         Channels.Clear();
-        SysCordSettings.Settings.TradeStartingChannels.Clear();
+        SysCord<T>.Runner.Hub.Config.Discord.TradeStartingChannels.Clear();
         await RespondAsync("Start Notifications cleared from all channels!").ConfigureAwait(false);
     }
 }

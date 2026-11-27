@@ -24,6 +24,7 @@ public static class ConfigLoader
             cfg.Hub.Folder.CreateDefaults(WorkingDirectory);
         }
 
+        cfg.EnsurePrimaryHubSynced();
         LogConfig.MaxArchiveFiles = cfg.Hub.MaxArchiveFiles;
         LogConfig.LoggingEnabled = cfg.Hub.LoggingEnabled;
         return cfg;
@@ -49,6 +50,7 @@ public static class ConfigLoader
 
     public static void Save(ProgramConfig cfg)
     {
+        cfg.EnsurePrimaryHubSynced();
         var lines = JsonSerializer.Serialize(cfg, ProgramConfigContext.Default.ProgramConfig);
         File.WriteAllText(ConfigPath, lines);
     }

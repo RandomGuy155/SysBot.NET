@@ -1,6 +1,4 @@
 using System.IO;
-using System.Threading;
-using System.Threading.Tasks;
 using System.Windows.Forms;
 using PKHeX.Core;
 using PKHeX.Drawing.PokeSprite;
@@ -10,10 +8,15 @@ using SysBot.Pokemon.YouTube;
 
 namespace SysBot.Pokemon.WinForms;
 
+public interface ISharedDiscordRunner
+{
+    void RegisterWithDiscordHost(SysCordHost host);
+}
+
 /// <summary>
 /// Bot Environment implementation with Integrations added.
 /// </summary>
-public class PokeBotRunnerImpl<T> : PokeBotRunner<T> where T : PKM, new()
+public class PokeBotRunnerImpl<T> : PokeBotRunner<T>, ISharedDiscordRunner where T : PKM, new()
 {
     public PokeBotRunnerImpl(PokeTradeHub<T> hub, BotFactory<T> fac) : base(hub, fac) { }
     public PokeBotRunnerImpl(PokeTradeHubConfig config, BotFactory<T> fac) : base(config, fac) { }
@@ -22,9 +25,15 @@ public class PokeBotRunnerImpl<T> : PokeBotRunner<T> where T : PKM, new()
     private YouTubeBot<T>? YouTube;
     public required Form Owner { get; init; }
 
+    public void RegisterWithDiscordHost(SysCordHost host)
+    {
+        host.RegisterRunner(this);
+        AddSpriteGenerating();
+    }
+
     protected override void AddIntegrations()
     {
-        AddDiscordBot(Hub.Config.Discord.Token);
+        AddSpriteGenerating();
         AddTwitchBot(Hub.Config.Twitch);
         AddYouTubeBot(Hub.Config.YouTube);
     }
@@ -65,17 +74,6 @@ public class PokeBotRunnerImpl<T> : PokeBotRunner<T> where T : PKM, new()
 
         YouTube = new YouTubeBot<T>(Hub.Config.YouTube, Hub);
         Hub.BotSync.BarrierReleasingActions.Add(() => YouTube.StartingDistribution(config.MessageStart));
-    }
-
-    private void AddDiscordBot(string apiToken)
-    {
-        if (string.IsNullOrWhiteSpace(apiToken))
-            return;
-        var bot = new SysCord<T>(this);
-        Task.Run(() => bot.MainAsync(apiToken, CancellationToken.None));
-
-        // Set up sprite generating; allows fetching a stream to attach without referencing the sprite dll.
-        AddSpriteGenerating();
     }
 
     private static void AddSpriteGenerating()

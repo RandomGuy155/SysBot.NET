@@ -1,8 +1,10 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Text;
+using System.Threading;
 using NLog;
 using NLog.Config;
 using NLog.Targets;
@@ -14,47 +16,91 @@ namespace SysBot.Base;
 /// </summary>
 public static class LogUtil
 {
+    private const string GeneralLoggerName = "SysBot.General";
+    private static readonly string WorkingDirectory = Path.GetDirectoryName(Environment.ProcessPath)!;
+    private static readonly Lock ConfigLock = new();
+    private static readonly ConcurrentDictionary<string, Logger> GameLoggers = new(StringComparer.OrdinalIgnoreCase);
+
     static LogUtil()
     {
         if (!LogConfig.LoggingEnabled)
             return;
 
         var config = new LoggingConfiguration();
-        Directory.CreateDirectory("logs");
-        var WorkingDirectory = Path.GetDirectoryName(Environment.ProcessPath)!;
-        var logfile = new FileTarget("logfile")
-        {
-            FileName = Path.Combine(WorkingDirectory, "logs", "SysBotLog.txt"),
-
-            ArchiveEvery = FileArchivePeriod.Day,
-            ArchiveSuffixFormat = "{1:yyyy-MM-dd}",
-            ArchiveFileName = Path.Combine(WorkingDirectory, "logs", "SysBotLog.{#}.txt"),
-            ArchiveAboveSize = 104857600, // 100MB (never)
-            MaxArchiveFiles = LogConfig.MaxArchiveFiles,
-            Encoding = Encoding.Unicode,
-            WriteBom = true,
-        };
-        config.AddRule(LogLevel.Debug, LogLevel.Fatal, logfile);
+        Directory.CreateDirectory(Path.Combine(WorkingDirectory, "logs"));
+        var logfile = CreateFileTarget("logfile", "SysBotLog");
+        config.AddRule(LogLevel.Debug, LogLevel.Fatal, logfile, GeneralLoggerName);
         LogManager.Configuration = config;
     }
 
-    private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
+    private static FileTarget CreateFileTarget(string targetName, string filePrefix) => new(targetName)
+    {
+        FileName = Path.Combine(WorkingDirectory, "logs", $"{filePrefix}.txt"),
+        ArchiveEvery = FileArchivePeriod.Day,
+        ArchiveSuffixFormat = "{1:yyyy-MM-dd}",
+        ArchiveFileName = Path.Combine(WorkingDirectory, "logs", $"{filePrefix}.{{#}}.txt"),
+        ArchiveAboveSize = 104857600, // 100MB (never)
+        MaxArchiveFiles = LogConfig.MaxArchiveFiles,
+        Encoding = Encoding.Unicode,
+        WriteBom = true,
+    };
+
+    private static readonly Logger Logger = LogManager.GetLogger(GeneralLoggerName);
+
+    /// <summary>
+    /// Optional resolver mapping a log identity (e.g. bot connection label) to a game tag for per-game log files.
+    /// </summary>
+    public static Func<string, string?>? GameTagResolver { get; set; }
+
+    private static Logger GetLoggerForTag(string? gameTag)
+    {
+        if (string.IsNullOrWhiteSpace(gameTag) || !LogConfig.LoggingEnabled)
+            return Logger;
+
+        return GameLoggers.GetOrAdd(gameTag, static tag =>
+        {
+            var loggerName = $"SysBot.Game.{tag}";
+            lock (ConfigLock)
+            {
+                var config = LogManager.Configuration;
+                if (config is not null)
+                {
+                    var targetName = $"logfile_{tag}";
+                    if (config.FindTargetByName(targetName) is null)
+                    {
+                        var target = CreateFileTarget(targetName, $"SysBotLog_{tag}");
+                        config.AddRule(LogLevel.Debug, LogLevel.Fatal, target, loggerName);
+                        LogManager.ReconfigExistingLoggers();
+                    }
+                }
+            }
+            return LogManager.GetLogger(loggerName);
+        });
+    }
+
+    private static Logger GetLoggerForIdentity(string identity)
+    {
+        var tag = GameTagResolver?.Invoke(identity);
+        return GetLoggerForTag(tag);
+    }
+
     public static void LogText(string message) => Logger.Log(LogLevel.Info, message);
+    public static void LogText(string message, string? gameTag) => GetLoggerForTag(gameTag).Log(LogLevel.Info, message);
 
     // hook in here if you want to forward the message elsewhere???
     public static readonly List<ILogForwarder> Forwarders = [];
 
     public static DateTime LastLogged { get; private set; } = DateTime.Now;
 
-    public static void LogError(string message, [CallerMemberName] string identity ="")
+    public static void LogError(string message, [CallerMemberName] string identity = "")
     {
-        Logger.Log(LogLevel.Error, $"{identity} {message}");
+        GetLoggerForIdentity(identity).Log(LogLevel.Error, $"{identity} {message}");
         Log(message, identity);
     }
 
     public static void LogInfo(string message, [CallerMemberName] string identity = "")
     {
-        Logger.Log(LogLevel.Info, $"{identity} {message}");
+        GetLoggerForIdentity(identity).Log(LogLevel.Info, $"{identity} {message}");
         Log(message, identity);
     }
 
@@ -78,13 +124,14 @@ public static class LogUtil
 
     public static void LogSafe(Exception exception, [CallerMemberName] string identity = "")
     {
-        Logger.Log(LogLevel.Error, $"Exception from {identity}:");
-        Logger.Log(LogLevel.Error, exception);
+        var logger = GetLoggerForIdentity(identity);
+        logger.Log(LogLevel.Error, $"Exception from {identity}:");
+        logger.Log(LogLevel.Error, exception);
 
         var err = exception.InnerException;
         while (err is not null)
         {
-            Logger.Log(LogLevel.Error, err);
+            logger.Log(LogLevel.Error, err);
             err = err.InnerException;
         }
     }

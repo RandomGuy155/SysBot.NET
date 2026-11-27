@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Discord;
 using Discord.Interactions;
 using Discord.WebSocket;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace SysBot.Pokemon.Discord;
 
@@ -12,7 +13,7 @@ public sealed class RequireSudoAttribute : PreconditionAttribute
 {
     public override Task<PreconditionResult> CheckRequirementsAsync(IInteractionContext context, ICommandInfo command, IServiceProvider services)
     {
-        var mgr = SysCordSettings.Manager;
+        var mgr = services?.GetService<SysCordContext>()?.Manager ?? SysCordSettings.Manager;
         if (mgr.Config.AllowGlobalSudo && mgr.CanUseSudo(context.User.Id))
             return Task.FromResult(PreconditionResult.FromSuccess());
 
@@ -24,7 +25,7 @@ public sealed class RequireSudoAttribute : PreconditionAttribute
             return Task.FromResult(PreconditionResult.FromSuccess());
 
         // Fallback: check if it is the owner or a team member.
-        if (RequireTeamOrOwnerAttribute.IsTeamOrOwner(context))
+        if (RequireTeamOrOwnerAttribute.IsTeamOrOwner(context, mgr))
             return Task.FromResult(PreconditionResult.FromSuccess());
 
         // Since it wasn't, fail

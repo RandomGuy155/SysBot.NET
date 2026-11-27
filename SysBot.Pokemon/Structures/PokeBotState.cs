@@ -9,6 +9,11 @@ namespace SysBot.Pokemon;
 [Serializable]
 public sealed class PokeBotState : BotState<PokeRoutineType, SwitchConnectionConfig>
 {
+    /// <summary>
+    /// Optional per-bot game mode. When <see langword="null"/>, falls back to <see cref="ProgramConfig.Mode"/>.
+    /// </summary>
+    public ProgramMode? Mode { get; set; }
+
     /// <inheritdoc/>
     public override void IterateNextRoutine() => CurrentRoutineType = NextRoutineType;
     /// <inheritdoc/>

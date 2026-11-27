@@ -1,24 +1,33 @@
 using System;
-using System.IO;
-using PKHeX.Core;
+using System.Threading;
 
 namespace SysBot.Pokemon.Discord;
 
 public static class SysCordSettings
 {
-    public static DiscordManager Manager { get; internal set; } = null!;
-    public static DiscordSettings Settings => Manager.Config;
-    public static PokeTradeHubConfig HubConfig { get; internal set; } = null!;
-    public static IServiceProvider ServiceProvider { get; internal set; } = null!;
+    private static readonly AsyncLocal<SysCordContext?> _current = new();
+    private static SysCordContext? _fallback;
 
-    public static int RegisteredCommands { get; private set; }
-    public static int RegisteredModals { get; private set; }
-    public static DateTime RegisteredTime { get; private set; }
+    public static SysCordContext? Current
+    {
+        get => _current.Value ?? _fallback;
+        internal set
+        {
+            _current.Value = value;
+            if (value is not null)
+                _fallback = value;
+        }
+    }
+
+    public static DiscordManager Manager => Current!.Manager;
+    public static DiscordSettings Settings => Current!.Settings;
+    public static PokeTradeHubConfig HubConfig => Current!.HubConfig;
+    public static IServiceProvider ServiceProvider => Current!.ServiceProvider;
+
+    public static int RegisteredCommands => Current?.RegisteredCommands ?? 0;
+    public static int RegisteredModals => Current?.RegisteredModals ?? 0;
+    public static DateTime RegisteredTime => Current?.RegisteredTime ?? default;
 
     public static void SetCommandsRegistered(int countCommand, int countModal)
-    {
-        RegisteredCommands = countCommand;
-        RegisteredModals = countModal;
-        RegisteredTime = DateTime.UtcNow;
-    }
+        => Current?.SetCommandsRegistered(countCommand, countModal);
 }

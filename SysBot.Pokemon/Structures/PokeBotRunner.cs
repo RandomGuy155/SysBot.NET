@@ -8,6 +8,7 @@ namespace SysBot.Pokemon;
 
 public interface IPokeBotRunner
 {
+    ProgramMode Mode { get; }
     PokeTradeHubConfig Config { get; }
     bool RunOnce { get; }
     bool IsRunning { get; }
@@ -29,6 +30,8 @@ public abstract class PokeBotRunner<T>(PokeTradeHub<T> hub, BotFactory<T> Factor
     where T : PKM, new()
 {
     public PokeTradeHub<T> Hub => hub;
+
+    public ProgramMode Mode => Hub.Config.Mode;
 
     public PokeTradeHubConfig Config => Hub.Config;
 

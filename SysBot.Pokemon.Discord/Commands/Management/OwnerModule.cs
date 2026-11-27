@@ -11,13 +11,13 @@ namespace SysBot.Pokemon.Discord;
 [Group("owner", "Commands usable by the bot owner.")]
 [DefaultMemberPermissions(GuildPermission.Administrator)] // hide these commands from the majority of users; bot Owners must have admin on server to manage.
 [RequireTeamOrOwner]
-public class OwnerModule : InteractionModuleBase<SocketInteractionContext>
+public class OwnerModule(SysCordContext cord) : InteractionModuleBase<SocketInteractionContext>
 {
     [SlashCommand("add-sudo", "Adds a user to global sudo.")]
     [CommandContextType(InteractionContextType.Guild, InteractionContextType.PrivateChannel)]
     public async Task AddSudo(IUser user)
     {
-        SysCordSettings.Settings.GlobalSudoList.AddIfNew(GetReference(user.Id, user.GlobalName));
+        cord.Settings.GlobalSudoList.AddIfNew(GetReference(user.Id, user.GlobalName));
         await RespondAsync("Done.").ConfigureAwait(false);
     }
 
@@ -25,16 +25,43 @@ public class OwnerModule : InteractionModuleBase<SocketInteractionContext>
     [CommandContextType(InteractionContextType.Guild, InteractionContextType.PrivateChannel)]
     public async Task RemoveSudo(IUser user)
     {
-        SysCordSettings.Settings.GlobalSudoList.RemoveAll(z => z.ID == user.Id);
+        cord.Settings.GlobalSudoList.RemoveAll(z => z.ID == user.Id);
         await RespondAsync("Done.").ConfigureAwait(false);
     }
 
-    [SlashCommand("add-channel", "Adds this channel to the command whitelist.")]
+    [SlashCommand("add-channel", "Assigns this channel to a game's command whitelist.")]
     [CommandContextType(InteractionContextType.Guild)]
-    public async Task AddChannel()
+    public async Task AddChannel(
+        [Summary(nameof(game), "Game to route commands from this channel to. Leave blank for the current game.")]
+        [Choice("SWSH", (int)ProgramMode.SWSH)]
+        [Choice("BDSP", (int)ProgramMode.BDSP)]
+        [Choice("LA", (int)ProgramMode.LA)]
+        [Choice("SV", (int)ProgramMode.SV)]
+        [Choice("LZA", (int)ProgramMode.LZA)]
+        int? game = null)
     {
         var c = Context.Interaction.Channel;
-        SysCordSettings.Settings.ChannelWhitelist.AddIfNew(GetReference(c.Id, c.Name));
+        var reference = GetReference(c.Id, c.Name);
+
+        if (cord.ProgramConfig is { } prog)
+        {
+            var targetMode = game is { } g && g != (int)ProgramMode.None
+                ? (ProgramMode)g
+                : (cord.HubConfig.Mode != ProgramMode.None ? cord.HubConfig.Mode : prog.Mode);
+
+            // Ensure a channel is only assigned to one game at a time.
+            foreach (var (otherMode, settings) in prog.GameHubs)
+            {
+                if (otherMode != targetMode)
+                    settings.ChannelWhitelist.RemoveAll(z => z.ID == c.Id);
+            }
+
+            prog.GetGameHubSettings(targetMode).ChannelWhitelist.AddIfNew(reference);
+            await RespondAsync($"Assigned #{c.Name} to **{targetMode}**.").ConfigureAwait(false);
+            return;
+        }
+
+        cord.Settings.ChannelWhitelist.AddIfNew(reference);
         await RespondAsync("Done.").ConfigureAwait(false);
     }
 
@@ -42,7 +69,24 @@ public class OwnerModule : InteractionModuleBase<SocketInteractionContext>
     [CommandContextType(InteractionContextType.Guild)]
     public async Task RemoveChannel()
     {
-        SysCordSettings.Settings.ChannelWhitelist.RemoveAll(z => z.ID == Context.Interaction.Channel.Id);
+        var channelId = Context.Interaction.Channel.Id;
+        if (cord.ProgramConfig is { } prog)
+        {
+            var removedFrom = new List<ProgramMode>();
+            foreach (var (mode, settings) in prog.GameHubs)
+            {
+                if (settings.ChannelWhitelist.RemoveAll(z => z.ID == channelId) > 0)
+                    removedFrom.Add(mode);
+            }
+
+            var msg = removedFrom.Count > 0
+                ? $"Removed channel from: **{string.Join(", ", removedFrom)}**."
+                : "This channel was not assigned to any game.";
+            await RespondAsync(msg).ConfigureAwait(false);
+            return;
+        }
+
+        cord.Settings.ChannelWhitelist.RemoveAll(z => z.ID == channelId);
         await RespondAsync("Done.").ConfigureAwait(false);
     }
 
@@ -99,7 +143,10 @@ public class OwnerModule : InteractionModuleBase<SocketInteractionContext>
             var result = new GuildPermissionScanResult { GuildName = guild.Name };
             foreach (var channel in guild.TextChannels)
             {
-                if (!SysCordSettings.Settings.ChannelWhitelist.Contains(channel.Id))
+                var whitelisted = cord.ProgramConfig is { } prog
+                    ? prog.GameHubs.Values.Any(g => g.ChannelWhitelist.Contains(channel.Id))
+                    : cord.Settings.ChannelWhitelist.Contains(channel.Id);
+                if (!whitelisted)
                     continue;
 
                 var missingPerms = GetMissingPerms(guild, channel);

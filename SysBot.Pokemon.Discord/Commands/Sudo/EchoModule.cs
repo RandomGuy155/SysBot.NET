@@ -9,7 +9,7 @@ using SysBot.Base;
 namespace SysBot.Pokemon.Discord;
 
 [Group("echo", "Control over bot echoes.")]
-public class EchoModule : SudoModuleBase
+public class EchoModule(SysCordContext cord) : SudoModuleBase
 {
     // ReSharper disable NotAccessedPositionalProperty.Local
     private record EchoChannel(ulong ChannelId, string ChannelName, Action<string> Action);
@@ -21,6 +21,8 @@ public class EchoModule : SudoModuleBase
         int count = 0;
         foreach (var channelAccess in cfg.EchoChannels)
         {
+            if (Channels.ContainsKey(channelAccess.ID))
+                continue;
             if (discord.GetChannel(channelAccess.ID) is not ISocketMessageChannel channel)
             {
                 LogUtil.LogInfo($"Failed to add echoes to {channelAccess.Name}.");
@@ -51,7 +53,7 @@ public class EchoModule : SudoModuleBase
         }
 
         AddEchoChannel(channel, channelId);
-        SysCordSettings.Settings.EchoChannels.AddIfNew(GetReference(channel));
+        cord.Settings.EchoChannels.AddIfNew(GetReference(channel));
         await RespondAsync("Added Echo output to this channel!").ConfigureAwait(false);
     }
     private static void AddEchoChannel(ISocketMessageChannel channel, ulong channelId)
@@ -69,7 +71,10 @@ public class EchoModule : SudoModuleBase
     [SlashCommand("info", "Dumps the Echo settings.")]
     public async Task DumpEchoInfoAsync()
     {
-        await RespondAsync(string.Join('\n', Channels.Select(c => $"{c.Key} - {c.Value}"))).ConfigureAwait(false);
+        var ids = cord.Settings.EchoChannels.List.Select(z => z.ID).ToHashSet();
+        var entries = Channels.Where(c => ids.Contains(c.Key)).Select(c => $"{c.Key} - {c.Value}");
+        var text = string.Join('\n', entries);
+        await RespondAsync(string.IsNullOrEmpty(text) ? "No echo channels configured." : text).ConfigureAwait(false);
     }
 
     [SlashCommand("clear", "Clears Echo settings from this channel.")]
@@ -84,18 +89,21 @@ public class EchoModule : SudoModuleBase
 
         EchoUtil.Forwarders.Remove(echo.Action);
         Channels.Remove(channelId);
-        SysCordSettings.Settings.EchoChannels.RemoveAll(z => z.ID == channelId);
+        cord.Settings.EchoChannels.RemoveAll(z => z.ID == channelId);
         await RespondAsync($"Echoes cleared from channel: {Context.Interaction.Channel.Name}").ConfigureAwait(false);
     }
 
     [SlashCommand("clear-all", "Clears all Echo channel settings.")]
     public async Task ClearEchosAllAsync()
     {
-        foreach (var l in Channels.Values)
-            EchoUtil.Forwarders.Remove(l.Action);
+        var ids = cord.Settings.EchoChannels.List.Select(z => z.ID).ToHashSet();
+        foreach (var id in ids)
+        {
+            if (Channels.Remove(id, out var l))
+                EchoUtil.Forwarders.Remove(l.Action);
+        }
 
-        Channels.Clear();
-        SysCordSettings.Settings.EchoChannels.Clear();
+        cord.Settings.EchoChannels.Clear();
         await RespondAsync("Echoes cleared from all channels!").ConfigureAwait(false);
     }
 }

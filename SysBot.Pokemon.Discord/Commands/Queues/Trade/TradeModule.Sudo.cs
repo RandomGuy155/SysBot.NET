@@ -31,7 +31,7 @@ public partial class TradeModule<T>
     {
         // Display not-ephemeral message to the sudo user, since this is a sudo command and they should be aware of the action being taken.
         await DeferAsync().ConfigureAwait(false);
-        SysCordSettings.HubConfig.TradeAbuse.BannedIDs.AddIfNew(GetReference(nnid, reason));
+        SysCord<T>.Runner.Hub.Config.TradeAbuse.BannedIDs.AddIfNew(GetReference(nnid, reason));
         await FollowupAsync($"Done. Online ID {nnid} has been banned for reason: {reason}").ConfigureAwait(false);
     }
 }

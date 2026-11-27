@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Discord;
 using Discord.Interactions;
 using Discord.WebSocket;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace SysBot.Pokemon.Discord;
 
@@ -15,7 +16,8 @@ public sealed class RequireQueueRoleAttribute(PokeRoutineType type) : Preconditi
 {
     public override Task<PreconditionResult> CheckRequirementsAsync(IInteractionContext context, ICommandInfo command, IServiceProvider services)
     {
-        var mgr = SysCordSettings.Manager;
+        var cord = services?.GetService<SysCordContext>() ?? SysCordSettings.Current!;
+        var mgr = cord.Manager;
         if (mgr.Config.AllowGlobalSudo && mgr.CanUseSudo(context.User.Id))
             return Task.FromResult(PreconditionResult.FromSuccess());
 
@@ -32,7 +34,7 @@ public sealed class RequireQueueRoleAttribute(PokeRoutineType type) : Preconditi
         if (!mgr.GetHasRoleAccess(type, roles.Select(z => z.Name)))
             return Task.FromResult(PreconditionResult.FromError("You do not have the required role to run this command."));
 
-        bool canQueue = SysCordSettings.HubConfig.Queues.CanQueue;
+        bool canQueue = cord.HubConfig.Queues.CanQueue;
         if (!canQueue)
             return Task.FromResult(PreconditionResult.FromError("Sorry, I am not currently accepting queue requests!"));
 

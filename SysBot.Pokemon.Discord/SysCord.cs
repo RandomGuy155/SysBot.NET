@@ -2,10 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
-using System.Runtime.CompilerServices;
-using System.Security.Cryptography;
-using System.Text;
-using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Discord;
@@ -20,10 +16,11 @@ namespace SysBot.Pokemon.Discord;
 
 public sealed class SysCord<T> where T : PKM, new()
 {
-    public static PokeBotRunner<T> Runner { get; private set; } = null!;
+    public static PokeBotRunner<T> Runner { get; internal set; } = null!;
 
     private readonly DiscordSocketClient _client;
     private readonly DiscordManager _manager;
+    private readonly SysCordContext _context;
     public readonly PokeTradeHub<T> Hub;
 
     private readonly InteractionService _interactions;
@@ -38,14 +35,13 @@ public sealed class SysCord<T> where T : PKM, new()
         Hub = runner.Hub;
         _manager = new DiscordManager(Hub.Config.Discord);
 
-        SysCordSettings.Manager = _manager;
-        SysCordSettings.HubConfig = Hub.Config;
-
         _client = new DiscordSocketClient(new DiscordSocketConfig
         {
             LogLevel = LogSeverity.Info,
             GatewayIntents = Guilds | GuildMessages | DirectMessages,
         });
+
+        _context = new SysCordContext(_manager, Hub.Config, _client);
 
         _interactions = new InteractionService(_client.Rest, new InteractionServiceConfig
         {
@@ -56,40 +52,26 @@ public sealed class SysCord<T> where T : PKM, new()
         _client.Log += Log;
         _interactions.Log += Log;
         _services = ConfigureServices();
-        SysCordSettings.ServiceProvider = _services;
+        _context.ServiceProvider = _services;
+        SysCordSettings.Current = _context;
     }
 
     private ServiceProvider ConfigureServices()
     {
         return new ServiceCollection()
+            .AddSingleton(_context)
+            .AddSingleton(_manager)
+            .AddSingleton(Hub.Config)
             .AddSingleton(_client)
             .AddSingleton(_interactions)
             .BuildServiceProvider();
     }
 
-    private static Task Log(LogMessage msg)
-    {
-        var text = $"[{msg.Severity,8}] {msg.Source}: {msg.Message} {msg.Exception}";
-        Console.ForegroundColor = GetTextColor(msg.Severity);
-        Console.WriteLine($"{DateTime.Now,-19} {text}");
-        Console.ResetColor();
-        LogUtil.LogText($"SysCord: {text}");
-        return Task.CompletedTask;
-    }
-
-    private static ConsoleColor GetTextColor(LogSeverity sv) => sv switch
-    {
-        LogSeverity.Critical => ConsoleColor.Red,
-        LogSeverity.Error => ConsoleColor.Red,
-        LogSeverity.Warning => ConsoleColor.Yellow,
-        LogSeverity.Info => ConsoleColor.White,
-        LogSeverity.Verbose => ConsoleColor.DarkGray,
-        LogSeverity.Debug => ConsoleColor.DarkGray,
-        _ => Console.ForegroundColor,
-    };
+    private Task Log(LogMessage msg) => SysCordUtil.Log(msg, Runner.Mode);
 
     public async Task MainAsync(string apiToken, CancellationToken token)
     {
+        SysCordSettings.Current = _context;
         await InitCommands().ConfigureAwait(false);
         await _client.LoginAsync(TokenType.Bot, apiToken).ConfigureAwait(false);
 
@@ -148,11 +130,12 @@ public sealed class SysCord<T> where T : PKM, new()
 
     private async Task HandleInteractionAsync(SocketInteraction interaction)
     {
+        SysCordSettings.Current = _context;
         var context = new SocketInteractionContext(_client, interaction);
 
         if (!_manager.CanUseCommandUser(context.User.Id))
         {
-            await RespondErrorAsync(interaction, "You are not permitted to use this command.", ephemeral: true).ConfigureAwait(false);
+            await SysCordUtil.RespondErrorAsync(interaction, "You are not permitted to use this command.", ephemeral: true).ConfigureAwait(false);
             return;
         }
 
@@ -160,40 +143,16 @@ public sealed class SysCord<T> where T : PKM, new()
         {
             // Visibly reply if settings require (so that others can see).
             var ephemeral = !Hub.Config.Discord.ReplyCannotUseCommandInChannel;
-            await RespondErrorAsync(interaction, "You can't use that here.", ephemeral: ephemeral).ConfigureAwait(false);
+            await SysCordUtil.RespondErrorAsync(interaction, "You can't use that here.", ephemeral: ephemeral).ConfigureAwait(false);
             return;
         }
 
-        await LogInteractionStart(context, channel).ConfigureAwait(false);
+        await SysCordUtil.LogInteractionStart(context, channel, Runner.Mode).ConfigureAwait(false);
 
         var result = await _interactions.ExecuteCommandAsync(context, _services).ConfigureAwait(false);
         if (!result.IsSuccess && !interaction.HasResponded)
-            await RespondErrorAsync(interaction, result.ErrorReason).ConfigureAwait(false);
+            await SysCordUtil.RespondErrorAsync(interaction, result.ErrorReason).ConfigureAwait(false);
     }
-
-    private static async Task LogInteractionStart(SocketInteractionContext context, ulong channelId)
-    {
-        var interaction = context.Interaction;
-        var (type, identity) = interaction switch
-        {
-            SocketSlashCommand cmd => ("slash command", $"Command: {cmd.CommandName}"),
-            SocketModal modal => ("modal", $"Modal: {modal.Id}"),
-            SocketMessageComponent c => ("component", $"Component: {c.Id}"),
-            _ => (interaction.Type.ToString(), "Unknown"),
-        };
-        var channel = interaction.Channel?.Name ?? $"Unknown Channel: {channelId}";
-        var location = interaction.IsDMInteraction ? "Direct Messages" : context.Guild?.Name ?? "Unknown Guild";
-        var status = $"Executing {type} from {location}:{channel}:@{context.User.Username}. {identity}";
-
-        await Log(GetLog(LogSeverity.Info, status)).ConfigureAwait(false);
-    }
-
-    private static Task RespondErrorAsync(SocketInteraction interaction, string message, bool ephemeral = true) => interaction.HasResponded
-        ? interaction.FollowupAsync(message, ephemeral: ephemeral)
-        : interaction.RespondAsync(message, ephemeral: ephemeral);
-
-    private static LogMessage GetLog(LogSeverity severity, string message, [CallerMemberName] string identity = "")
-        => new (severity, identity, message);
 
     private async Task MonitorStatusAsync(CancellationToken token)
     {
@@ -237,25 +196,12 @@ public sealed class SysCord<T> where T : PKM, new()
         }
     }
 
-    // There is a global rate limit of 200 application command creates per day, per guild
-    // We'll still be good citizens and only trigger an update if the modules were revised.
-    private string ComputeSlashCommandHash()
-    {
-        var commands = _interactions.SlashCommands;
-        var json = JsonSerializer.Serialize(commands.Select(c => new {
-            c.Name,
-            c.Description,
-            Params = c.Parameters.Select(p => new { p.Name, p.Description, p.DiscordOptionType })
-        }));
-
-        return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(json)));
-    }
-
     private async Task LoadCommandsAndChannels()
     {
+        SysCordSettings.Current = _context;
         var cfg = Hub.Config.Discord;
         if (!CommandsRegistered)
-            await RegisterSlashCommands(cfg).ConfigureAwait(false);
+            CommandsRegistered = await SysCordUtil.RegisterSlashCommandsAsync(_interactions, cfg, _context.SetCommandsRegistered).ConfigureAwait(false);
 
         if (MessageChannelsLoaded)
             return;
@@ -269,47 +215,11 @@ public sealed class SysCord<T> where T : PKM, new()
 
         // Don't let it load more than once in case of Discord hiccups.
         const string status = "Logging and Echo channels loaded!";
-        await Log(GetLog(LogSeverity.Info, status)).ConfigureAwait(false);
+        await Log(SysCordUtil.GetLog(LogSeverity.Info, status)).ConfigureAwait(false);
         MessageChannelsLoaded = true;
 
         var game = cfg.BotGameStatus;
         if (!string.IsNullOrWhiteSpace(game))
             await _client.SetGameAsync(game).ConfigureAwait(false);
-    }
-
-    private async Task RegisterSlashCommands(DiscordSettings cfg)
-    {
-        var hash = ComputeSlashCommandHash();
-        if (hash == cfg.SlashCommandHash)
-        {
-            LogUtil.LogInfo("Skipped registering interactions; no signature changes detected.");
-            UpdateRegisteredCounts();
-            return;
-        }
-
-        try
-        {
-            // deleteMissing=true removes obsolete application commands left behind by previous versions of the bot.
-            // Global commands have a TTL of 1 hour
-            await _interactions.RegisterCommandsGloballyAsync(deleteMissing: true).ConfigureAwait(false);
-            CommandsRegistered = true;
-
-            UpdateRegisteredCounts();
-            cfg.SlashCommandHash = hash;
-
-            var message = $"Registered interactions. Hash: {hash[..6]}";
-            LogUtil.LogInfo(message);
-        }
-        catch (Exception ex)
-        {
-            LogUtil.LogSafe(ex);
-        }
-    }
-
-    private void UpdateRegisteredCounts()
-    {
-        var commands = _interactions.SlashCommands.Count;
-        var modals = _interactions.ModalCommands.Count;
-        SysCordSettings.SetCommandsRegistered(commands, modals);
     }
 }

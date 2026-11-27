@@ -16,7 +16,7 @@ namespace SysBot.Pokemon.Discord;
 // Adapted for SysBot.NET by kwsch 2020; updated for Slash commands 2026.
 
 [RequireContext(ContextType.Guild)]
-public class InfoModule : SlashModuleBase
+public class InfoModule(SysCordContext cord) : SlashModuleBase
 {
     private const string Description = "I am an open-source Discord bot powered by PKHeX.Core and other open-source software.";
     private const string Repo = "https://github.com/kwsch/SysBot.NET";
@@ -24,7 +24,7 @@ public class InfoModule : SlashModuleBase
     [SlashCommand("info", "Displays information about the bot.")]
     public async Task InfoAsync()
     {
-        var manager = SysCordSettings.Manager;
+        var manager = cord.Manager;
         var owner = manager.Owner;
         var teamLine = manager.Team is { } team ? $"\n- {Format.Bold("Team")}: {team.Name}" : "";
 
@@ -44,8 +44,8 @@ $"""
 - {Format.Bold("Buildtime")}: {GetVersionInfo("SysBot.Pokemon.Discord", false)}
 - {Format.Bold("Core Version")}: {GetVersionInfo("PKHeX.Core")}
 - {Format.Bold("AutoLegality Version")}: {GetVersionInfo("PKHeX.Core.AutoMod")}
-- {Format.Bold("Command Count")}: {SysCordSettings.RegisteredCommands} @ {TimestampTag.FromDateTime(SysCordSettings.RegisteredTime, TimestampTagStyles.ShortDateTime)}
-- {Format.Bold("Modal Count")}: {SysCordSettings.RegisteredModals}
+- {Format.Bold("Command Count")}: {cord.RegisteredCommands} @ {TimestampTag.FromDateTime(cord.RegisteredTime, TimestampTagStyles.ShortDateTime)}
+- {Format.Bold("Modal Count")}: {cord.RegisteredModals}
 """
             );
         builder.AddField("Stats",

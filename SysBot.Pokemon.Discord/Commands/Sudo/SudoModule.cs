@@ -14,14 +14,14 @@ public class SudoModule<T> : SudoModuleBase where T : PKM, new()
     [SlashCommand("blacklist-user", "Blacklists a Discord user.")]
     public async Task BlackListUser(IUser user)
     {
-        SysCordSettings.Settings.UserBlacklist.AddIfNew(GetReference(user));
+        SysCord<T>.Runner.Hub.Config.Discord.UserBlacklist.AddIfNew(GetReference(user));
         await RespondAsync("Done.").ConfigureAwait(false);
     }
 
     [SlashCommand("blacklist-comment", "Adds a comment for a blacklisted Discord user ID.")]
     public async Task BlackListComment(ulong id, string comment)
     {
-        var obj = SysCordSettings.Settings.UserBlacklist.List.Find(z => z.ID == id);
+        var obj = SysCord<T>.Runner.Hub.Config.Discord.UserBlacklist.List.Find(z => z.ID == id);
         if (obj is null)
         {
             await RespondAsync($"Unable to find a user with that ID ({id}).").ConfigureAwait(false);
@@ -36,14 +36,14 @@ public class SudoModule<T> : SudoModuleBase where T : PKM, new()
     [SlashCommand("unblacklist-user", "Removes a Discord user from the blacklist.")]
     public async Task UnBlackListUser(IUser user)
     {
-        SysCordSettings.Settings.UserBlacklist.RemoveAll(z => z.ID == user.Id);
+        SysCord<T>.Runner.Hub.Config.Discord.UserBlacklist.RemoveAll(z => z.ID == user.Id);
         await RespondAsync("Done.").ConfigureAwait(false);
     }
 
     [SlashCommand("blacklist-ids", "Blacklists comma-separated Discord user IDs.")]
     public async Task BlackListIDs(string ids)
     {
-        SysCordSettings.Settings.UserBlacklist.AddIfNew(GetIDs(ids).Select(z => GetReference(z, nameof(BlackListIDs))));
+        SysCord<T>.Runner.Hub.Config.Discord.UserBlacklist.AddIfNew(GetIDs(ids).Select(z => GetReference(z, nameof(BlackListIDs))));
         await RespondAsync("Done.").ConfigureAwait(false);
     }
 
@@ -51,14 +51,14 @@ public class SudoModule<T> : SudoModuleBase where T : PKM, new()
     public async Task UnBlackListIDs(string ids)
     {
         var set = GetIDs(ids).ToHashSet();
-        SysCordSettings.Settings.UserBlacklist.RemoveAll(z => set.Contains(z.ID));
+        SysCord<T>.Runner.Hub.Config.Discord.UserBlacklist.RemoveAll(z => set.Contains(z.ID));
         await RespondAsync("Done.").ConfigureAwait(false);
     }
 
     [SlashCommand("blacklist-summary", "Prints the list of blacklisted Discord users.")]
     public async Task PrintBlacklist()
     {
-        await RespondAsync(Format.Code(string.Join('\n', SysCordSettings.Settings.UserBlacklist.Summarize()))).ConfigureAwait(false);
+        await RespondAsync(Format.Code(string.Join('\n', SysCord<T>.Runner.Hub.Config.Discord.UserBlacklist.Summarize()))).ConfigureAwait(false);
     }
 
     [SlashCommand("ban-ids", "Bans comma-separated online user IDs.")]

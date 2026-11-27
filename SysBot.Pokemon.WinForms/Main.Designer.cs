@@ -38,11 +38,14 @@ namespace SysBot.Pokemon.WinForms
             TB_IP = new System.Windows.Forms.TextBox();
             NUD_Port = new System.Windows.Forms.TextBox();
             CB_Protocol = new System.Windows.Forms.ComboBox();
+            CB_Game = new System.Windows.Forms.ComboBox();
             CB_Routine = new System.Windows.Forms.ComboBox();
             FLP_Line = new System.Windows.Forms.FlowLayoutPanel();
             Tab_Hub = new System.Windows.Forms.TabPage();
+            TC_Hub = new SysBot.Pokemon.WinForms.VerticalTabControl();
             PG_Hub = new System.Windows.Forms.PropertyGrid();
             Tab_Logs = new System.Windows.Forms.TabPage();
+            TC_Logs = new SysBot.Pokemon.WinForms.VerticalTabControl();
             RTB_Logs = new System.Windows.Forms.RichTextBox();
             B_Stop = new System.Windows.Forms.Button();
             B_Start = new System.Windows.Forms.Button();
@@ -101,6 +104,7 @@ namespace SysBot.Pokemon.WinForms
             FLP_BotCreator.Controls.Add(TB_IP);
             FLP_BotCreator.Controls.Add(NUD_Port);
             FLP_BotCreator.Controls.Add(CB_Protocol);
+            FLP_BotCreator.Controls.Add(CB_Game);
             FLP_BotCreator.Controls.Add(CB_Routine);
             FLP_Bots.SetFlowBreak(FLP_BotCreator, true);
             FLP_BotCreator.Location = new System.Drawing.Point(0, 0);
@@ -150,11 +154,22 @@ namespace SysBot.Pokemon.WinForms
             CB_Protocol.TabIndex = 10;
             CB_Protocol.SelectedIndexChanged += CB_Protocol_SelectedIndexChanged;
             // 
+            // CB_Game
+            // 
+            CB_Game.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            CB_Game.FormattingEnabled = true;
+            CB_Game.Location = new System.Drawing.Point(351, 4);
+            CB_Game.Margin = new System.Windows.Forms.Padding(0, 4, 4, 4);
+            CB_Game.Name = "CB_Game";
+            CB_Game.Size = new System.Drawing.Size(68, 25);
+            CB_Game.TabIndex = 11;
+            CB_Game.SelectedIndexChanged += CB_Game_SelectedIndexChanged;
+            // 
             // CB_Routine
             // 
             CB_Routine.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
             CB_Routine.FormattingEnabled = true;
-            CB_Routine.Location = new System.Drawing.Point(351, 4);
+            CB_Routine.Location = new System.Drawing.Point(423, 4);
             CB_Routine.Margin = new System.Windows.Forms.Padding(0, 4, 4, 4);
             CB_Routine.Name = "CB_Routine";
             CB_Routine.Size = new System.Drawing.Size(117, 25);
@@ -172,7 +187,7 @@ namespace SysBot.Pokemon.WinForms
             // 
             // Tab_Hub
             // 
-            Tab_Hub.Controls.Add(PG_Hub);
+            Tab_Hub.Controls.Add(TC_Hub);
             Tab_Hub.Location = new System.Drawing.Point(4, 36);
             Tab_Hub.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             Tab_Hub.Name = "Tab_Hub";
@@ -180,6 +195,20 @@ namespace SysBot.Pokemon.WinForms
             Tab_Hub.TabIndex = 2;
             Tab_Hub.Text = "Hub";
             Tab_Hub.UseVisualStyleBackColor = true;
+            // 
+            // TC_Hub
+            // 
+            TC_Hub.Alignment = System.Windows.Forms.TabAlignment.Left;
+            TC_Hub.Dock = System.Windows.Forms.DockStyle.Fill;
+            TC_Hub.ItemSize = new System.Drawing.Size(36, 92);
+            TC_Hub.Location = new System.Drawing.Point(0, 0);
+            TC_Hub.Margin = new System.Windows.Forms.Padding(0);
+            TC_Hub.Name = "TC_Hub";
+            TC_Hub.SelectedIndex = 0;
+            TC_Hub.Size = new System.Drawing.Size(676, 241);
+            TC_Hub.SizeMode = System.Windows.Forms.TabSizeMode.Fixed;
+            TC_Hub.TabIndex = 0;
+            TC_Hub.SelectedIndexChanged += TC_Hub_SelectedIndexChanged;
             // 
             // PG_Hub
             // 
@@ -189,12 +218,13 @@ namespace SysBot.Pokemon.WinForms
             PG_Hub.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             PG_Hub.Name = "PG_Hub";
             PG_Hub.PropertySort = System.Windows.Forms.PropertySort.Categorized;
-            PG_Hub.Size = new System.Drawing.Size(676, 241);
+            PG_Hub.Size = new System.Drawing.Size(583, 241);
             PG_Hub.TabIndex = 0;
+            PG_Hub.PropertyValueChanged += PG_Hub_PropertyValueChanged;
             // 
             // Tab_Logs
             // 
-            Tab_Logs.Controls.Add(RTB_Logs);
+            Tab_Logs.Controls.Add(TC_Logs);
             Tab_Logs.Location = new System.Drawing.Point(4, 36);
             Tab_Logs.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             Tab_Logs.Name = "Tab_Logs";
@@ -202,6 +232,20 @@ namespace SysBot.Pokemon.WinForms
             Tab_Logs.TabIndex = 1;
             Tab_Logs.Text = "Logs";
             Tab_Logs.UseVisualStyleBackColor = true;
+            // 
+            // TC_Logs
+            // 
+            TC_Logs.Alignment = System.Windows.Forms.TabAlignment.Left;
+            TC_Logs.Dock = System.Windows.Forms.DockStyle.Fill;
+            TC_Logs.ItemSize = new System.Drawing.Size(36, 92);
+            TC_Logs.Location = new System.Drawing.Point(0, 0);
+            TC_Logs.Margin = new System.Windows.Forms.Padding(0);
+            TC_Logs.Name = "TC_Logs";
+            TC_Logs.SelectedIndex = 0;
+            TC_Logs.Size = new System.Drawing.Size(676, 241);
+            TC_Logs.SizeMode = System.Windows.Forms.TabSizeMode.Fixed;
+            TC_Logs.TabIndex = 0;
+            TC_Logs.SelectedIndexChanged += TC_Logs_SelectedIndexChanged;
             // 
             // RTB_Logs
             // 
@@ -211,7 +255,7 @@ namespace SysBot.Pokemon.WinForms
             RTB_Logs.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             RTB_Logs.Name = "RTB_Logs";
             RTB_Logs.ReadOnly = true;
-            RTB_Logs.Size = new System.Drawing.Size(676, 241);
+            RTB_Logs.Size = new System.Drawing.Size(583, 241);
             RTB_Logs.TabIndex = 0;
             RTB_Logs.Text = "";
             // 
@@ -275,6 +319,7 @@ namespace SysBot.Pokemon.WinForms
         private System.Windows.Forms.Button B_Stop;
         private System.Windows.Forms.Button B_Start;
         private System.Windows.Forms.TextBox TB_IP;
+        private System.Windows.Forms.ComboBox CB_Game;
         private System.Windows.Forms.ComboBox CB_Routine;
         private System.Windows.Forms.TextBox NUD_Port;
         private System.Windows.Forms.Button B_New;
@@ -282,6 +327,8 @@ namespace SysBot.Pokemon.WinForms
         private System.Windows.Forms.ComboBox CB_Protocol;
         private System.Windows.Forms.FlowLayoutPanel FLP_BotCreator;
         private System.Windows.Forms.FlowLayoutPanel FLP_Line;
+        private SysBot.Pokemon.WinForms.VerticalTabControl TC_Hub;
+        private SysBot.Pokemon.WinForms.VerticalTabControl TC_Logs;
     }
 }
 

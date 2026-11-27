@@ -12,6 +12,7 @@ public partial class BotController : UserControl
     public PokeBotState State { get; private set; } = new();
     private IPokeBotRunner? Runner;
     public EventHandler? Remove;
+    public Action? BeforeStart;
 
     public BotController()
     {
@@ -59,6 +60,8 @@ public partial class BotController : UserControl
     {
         Runner = runner;
         State = cfg;
+        L_Left.AutoSize = true;
+        L_Left.MinimumSize = new Size(110, Height);
         ReloadStatus();
         L_Description.Text = string.Empty;
     }
@@ -66,7 +69,19 @@ public partial class BotController : UserControl
     public void ReloadStatus()
     {
         var bot = GetBot().Bot;
-        L_Left.Text = $"{bot.Connection.Name}{Environment.NewLine}{State.InitialRoutine}";
+        var modeTag = Runner is { Mode: not ProgramMode.None } r ? $"[{r.Mode}] " : string.Empty;
+        L_Left.Text = $"{bot.Connection.Name}{Environment.NewLine}{modeTag}{State.InitialRoutine}";
+        UpdateDescriptionPosition();
+    }
+
+    private void UpdateDescriptionPosition()
+    {
+        var desiredLeft = Math.Max(150, L_Left.Right + 8);
+        if (L_Description.Left != desiredLeft)
+        {
+            L_Description.Left = desiredLeft;
+            L_Description.Width = Math.Max(50, ClientSize.Width - desiredLeft - 4);
+        }
     }
 
     private DateTime LastUpdateStatus = DateTime.Now;
@@ -76,7 +91,6 @@ public partial class BotController : UserControl
         ReloadStatus();
         var bot = b.Bot;
         L_Description.Text = $"[{bot.LastTime:hh:mm:ss}] {bot.Connection.Label}: {bot.LastLogged}";
-        L_Left.Text = $"{bot.Connection.Name}{Environment.NewLine}{State.InitialRoutine}";
 
         var lastTime = bot.LastTime;
         if (!b.IsRunning)
@@ -154,6 +168,7 @@ public partial class BotController : UserControl
         {
             case BotControlCommand.Idle: bot.Pause(); break;
             case BotControlCommand.Start:
+                BeforeStart?.Invoke();
                 Runner.InitializeStart();
                 bot.Start(); break;
             case BotControlCommand.Stop: bot.Stop(); break;
@@ -164,6 +179,7 @@ public partial class BotController : UserControl
                 if (prompt != DialogResult.Yes)
                     return;
 
+                BeforeStart?.Invoke();
                 Runner.InitializeStart();
                 bot.Restart();
                 break;

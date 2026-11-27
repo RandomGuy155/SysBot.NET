@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel;
+using System.Text.Json.Serialization;
 
 // ReSharper disable AutoPropertyCanBeMadeGetOnly.Global
 
@@ -9,6 +10,10 @@ public sealed class PokeTradeHubConfig : BaseConfig
     private const string BotTrade = nameof(BotTrade);
     private const string BotEncounter = nameof(BotEncounter);
     private const string Integration = nameof(Integration);
+
+    [Browsable(false)]
+    [JsonIgnore]
+    public ProgramMode Mode { get; set; }
 
     [Browsable(false)]
     public override bool Shuffled => Distribution.Shuffled;

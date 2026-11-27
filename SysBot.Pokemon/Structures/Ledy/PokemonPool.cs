@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using PKHeX.Core;
 using SysBot.Base;
 
@@ -10,6 +11,7 @@ public class PokemonPool<T>(BaseConfig Settings) : List<T>
     where T : PKM, new()
 {
     private readonly int ExpectedSize = new T().Data.Length;
+    private readonly string ExpectedExtension = "." + new T().Extension;
     private bool Randomized => Settings.Shuffled;
 
     public readonly Dictionary<string, LedyRequest<T>> Files = [];
@@ -59,7 +61,8 @@ public class PokemonPool<T>(BaseConfig Settings) : List<T>
             return false;
 
         var loadedAny = false;
-        var files = Directory.EnumerateFiles(path, "*", opt);
+        var files = Directory.EnumerateFiles(path, "*", opt)
+            .Where(f => f.EndsWith(ExpectedExtension, StringComparison.OrdinalIgnoreCase));
         var matchFiles = LoadUtil.GetFilesOfSize(files, ExpectedSize);
 
         int surpriseBlocked = 0;

@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Discord;
 using Discord.Interactions;
 using Discord.WebSocket;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace SysBot.Pokemon.Discord;
 
@@ -15,7 +16,7 @@ public sealed class RequireRoleAccessAttribute(PokeRoutineType type) : Precondit
 {
     public override Task<PreconditionResult> CheckRequirementsAsync(IInteractionContext context, ICommandInfo command, IServiceProvider services)
     {
-        var mgr = SysCordSettings.Manager;
+        var mgr = services?.GetService<SysCordContext>()?.Manager ?? SysCordSettings.Manager;
         if (mgr.Config.AllowGlobalSudo && mgr.CanUseSudo(context.User.Id))
             return Task.FromResult(PreconditionResult.FromSuccess());
 

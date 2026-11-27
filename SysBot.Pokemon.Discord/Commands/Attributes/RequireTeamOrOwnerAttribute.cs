@@ -2,6 +2,7 @@ using System;
 using System.Threading.Tasks;
 using Discord;
 using Discord.Interactions;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace SysBot.Pokemon.Discord;
 
@@ -10,15 +11,16 @@ public sealed class RequireTeamOrOwnerAttribute : PreconditionAttribute
 {
     public override Task<PreconditionResult> CheckRequirementsAsync(IInteractionContext context, ICommandInfo command, IServiceProvider services)
     {
-        if (IsTeamOrOwner(context))
+        var mgr = services?.GetService<SysCordContext>()?.Manager ?? SysCordSettings.Manager;
+        if (IsTeamOrOwner(context, mgr))
             return Task.FromResult(PreconditionResult.FromSuccess());
 
         return Task.FromResult(PreconditionResult.FromError("You are not permitted to run this command."));
     }
 
-    public static bool IsTeamOrOwner(IInteractionContext context)
+    public static bool IsTeamOrOwner(IInteractionContext context, DiscordManager? manager = null)
     {
         // Check if the bot is owned by a team; if so, any marked as Owner are permitted.
-        return SysCordSettings.Manager.IsTeamOrOwner(context.User.Id);
+        return (manager ?? SysCordSettings.Manager).IsTeamOrOwner(context.User.Id);
     }
 }

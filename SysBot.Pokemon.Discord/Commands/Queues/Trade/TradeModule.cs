@@ -214,7 +214,7 @@ public partial class TradeModule<T> : SlashModuleBase where T : PKM, new() // pa
 
     private async Task<bool> CheckQueue()
     {
-        if (SysCordSettings.HubConfig.Queues.CanQueue)
+        if (SysCord<T>.Runner.Hub.Config.Queues.CanQueue)
             return true;
         await RespondAsync("The trade queue has closed.", ephemeral: true).ConfigureAwait(false);
         return false;

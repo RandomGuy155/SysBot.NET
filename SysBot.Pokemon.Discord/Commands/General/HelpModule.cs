@@ -8,14 +8,14 @@ using Discord.Interactions;
 namespace SysBot.Pokemon.Discord;
 
 [RequireContext(ContextType.Guild)]
-public class HelpModule(InteractionService service) : SlashModuleBase
+public class HelpModule(InteractionService service, SysCordContext cord) : SlashModuleBase
 {
     [SlashCommand("help", "Lists available slash commands.")]
     public async Task HelpAsync(
         [Summary(nameof(commandName), "Command name to get help for. Leave blank to fetch all available.")] string? commandName = null)
     {
         var builder = new EmbedBuilder { Color = Color.Blue };
-        var provider = SysCordSettings.ServiceProvider;
+        var provider = cord.ServiceProvider;
         if (string.IsNullOrWhiteSpace(commandName))
         {
             // There will be at least one command always (`help` was just used!).

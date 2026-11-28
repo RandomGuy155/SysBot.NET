@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+using System.Collections.Concurrent;
 using System.Linq;
 using System.Threading.Tasks;
 using Discord.Interactions;
@@ -10,7 +10,7 @@ namespace SysBot.Pokemon.Discord;
 [Group("log", "Logging commands.")]
 public class LogModule(SysCordContext cord) : SudoModuleBase
 {
-    private static readonly Dictionary<(ulong ChannelId, GameMode Mode), ChannelLogger> Channels = [];
+    private static readonly ConcurrentDictionary<(ulong ChannelId, GameMode Mode), ChannelLogger> Channels = [];
     public static void RestoreLogging(DiscordSocketClient discord, DiscordSettings settings, GameMode mode)
     {
         int count = 0;
@@ -56,8 +56,8 @@ public class LogModule(SysCordContext cord) : SudoModuleBase
     private static void AddLogChannel(ISocketMessageChannel channel, ulong channelId, GameMode mode)
     {
         var logger = new ChannelLogger(channel, mode);
-        LogUtil.Forwarders.Add(logger);
-        Channels.Add((channelId, mode), logger);
+        if (Channels.TryAdd((channelId, mode), logger))
+            LogUtil.Forwarders.Add(logger);
     }
 
     [SlashCommand("info", "Dumps the logging settings.")]
@@ -75,13 +75,12 @@ public class LogModule(SysCordContext cord) : SudoModuleBase
     {
         var channelId = Context.Interaction.Channel.Id;
         var key = (channelId, cord.HubConfig.Mode);
-        if (!Channels.TryGetValue(key, out var log))
+        if (!Channels.TryRemove(key, out var log))
         {
             await RespondAsync("Not logging in this channel.").ConfigureAwait(false);
             return;
         }
         LogUtil.Forwarders.Remove(log);
-        Channels.Remove(key);
         cord.Settings.LoggingChannels.RemoveAll(z => z.ID == channelId);
         await RespondAsync($"Logging cleared from channel: {Context.Interaction.Channel.Name}").ConfigureAwait(false);
     }
@@ -93,7 +92,7 @@ public class LogModule(SysCordContext cord) : SudoModuleBase
         var ids = cord.Settings.LoggingChannels.List.Select(z => z.ID).ToHashSet();
         foreach (var id in ids)
         {
-            if (Channels.Remove((id, mode), out var l))
+            if (Channels.TryRemove((id, mode), out var l))
                 LogUtil.Forwarders.Remove(l);
         }
 

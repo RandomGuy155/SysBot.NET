@@ -88,7 +88,7 @@ public static class LogUtil
     public static void LogText(string message, string? gameTag) => GetLoggerForTag(gameTag).Log(LogLevel.Info, message);
 
     // hook in here if you want to forward the message elsewhere???
-    public static readonly List<ILogForwarder> Forwarders = [];
+    public static readonly ForwarderList<ILogForwarder> Forwarders = new();
 
     public static DateTime LastLogged { get; private set; } = DateTime.Now;
 
@@ -106,7 +106,7 @@ public static class LogUtil
 
     private static void Log(string message, [CallerMemberName] string identity = "")
     {
-        foreach (var fwd in Forwarders)
+        foreach (var fwd in Forwarders.Snapshot)
         {
             try
             {

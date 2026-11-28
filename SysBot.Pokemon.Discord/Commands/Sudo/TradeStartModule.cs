@@ -1,5 +1,5 @@
 using System;
-using System.Collections.Generic;
+using System.Collections.Concurrent;
 using System.Linq;
 using System.Threading.Tasks;
 using Discord.Interactions;
@@ -15,13 +15,13 @@ public class TradeStartModule<T> : SudoModuleBase where T : PKM, new()
     private record TradeStartAction(ulong ChannelId, Action<PokeRoutineExecutorBase, PokeTradeDetail<T>> Messager, string ChannelName)
         : ChannelAction<PokeRoutineExecutorBase, PokeTradeDetail<T>>(ChannelId, Messager, ChannelName);
 
-    private static readonly Dictionary<ulong, TradeStartAction> Channels = [];
+    private static readonly ConcurrentDictionary<ulong, TradeStartAction> Channels = [];
     public static bool IsStartChannel(ulong channelId) => Channels.ContainsKey(channelId);
 
     private static void Remove(TradeStartAction e)
     {
-        Channels.Remove(e.ChannelId);
-        SysCord<T>.Runner.Hub.Queues.Forwarders.Remove(e.Messager);
+        if (Channels.TryRemove(e.ChannelId, out _))
+            SysCord<T>.Runner.Hub.Queues.Forwarders.Remove(e.Messager);
     }
 
     public static void RestoreTradeStarting(DiscordSocketClient discord, DiscordSettings settings)
@@ -68,8 +68,8 @@ public class TradeStartModule<T> : SudoModuleBase where T : PKM, new()
     private static void AddLogChannel(ISocketMessageChannel c, ulong channelId)
     {
         var l = Logger;
-        SysCord<T>.Runner.Hub.Queues.Forwarders.Add(l);
-        Channels.Add(channelId, new TradeStartAction(channelId, l, c.Name));
+        if (Channels.TryAdd(channelId, new TradeStartAction(channelId, l, c.Name)))
+            SysCord<T>.Runner.Hub.Queues.Forwarders.Add(l);
         return;
 
         void Logger(PokeRoutineExecutorBase bot, PokeTradeDetail<T> detail)

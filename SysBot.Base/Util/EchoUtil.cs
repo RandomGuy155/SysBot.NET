@@ -5,12 +5,12 @@ namespace SysBot.Base;
 
 public static class EchoUtil
 {
-    public static readonly List<Action<string>> Forwarders = [];
-    public static readonly List<Action<string, string?>> TaggedForwarders = [];
+    public static readonly ForwarderList<Action<string>> Forwarders = new();
+    public static readonly ForwarderList<Action<string, string?>> TaggedForwarders = new();
 
     public static void Echo(string message, string? gameTag = null)
     {
-        foreach (var fwd in Forwarders)
+        foreach (var fwd in Forwarders.Snapshot)
         {
             try
             {
@@ -22,7 +22,7 @@ public static class EchoUtil
                 LogUtil.LogSafe(ex);
             }
         }
-        foreach (var fwd in TaggedForwarders)
+        foreach (var fwd in TaggedForwarders.Snapshot)
         {
             try
             {

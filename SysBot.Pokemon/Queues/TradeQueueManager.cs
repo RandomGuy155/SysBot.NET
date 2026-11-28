@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using PKHeX.Core;
+using SysBot.Base;
 
 namespace SysBot.Pokemon;
 
@@ -143,11 +144,11 @@ public class TradeQueueManager<T> where T : PKM, new()
     }
 
     // hook in here if you want to forward the message elsewhere???
-    public readonly List<Action<PokeRoutineExecutorBase, PokeTradeDetail<T>>> Forwarders = [];
+    public readonly ForwarderList<Action<PokeRoutineExecutorBase, PokeTradeDetail<T>>> Forwarders = new();
 
     public void StartTrade(PokeRoutineExecutorBase b, PokeTradeDetail<T> detail)
     {
-        foreach (var f in Forwarders)
+        foreach (var f in Forwarders.Snapshot)
             f.Invoke(b, detail);
     }
 }

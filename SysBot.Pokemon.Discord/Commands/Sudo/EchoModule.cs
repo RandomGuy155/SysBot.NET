@@ -1,5 +1,5 @@
 using System;
-using System.Collections.Generic;
+using System.Collections.Concurrent;
 using System.Linq;
 using System.Threading.Tasks;
 using Discord.Interactions;
@@ -14,7 +14,7 @@ public class EchoModule(SysCordContext cord) : SudoModuleBase
     // ReSharper disable NotAccessedPositionalProperty.Local
     private record EchoChannel(ulong ChannelId, string ChannelName, GameMode Mode, Action<string, string?> Action);
 
-    private static readonly Dictionary<(ulong ChannelId, GameMode Mode), EchoChannel> Channels = [];
+    private static readonly ConcurrentDictionary<(ulong ChannelId, GameMode Mode), EchoChannel> Channels = [];
 
     public static void RestoreChannels(DiscordSocketClient discord, DiscordSettings cfg, GameMode mode)
     {
@@ -61,8 +61,8 @@ public class EchoModule(SysCordContext cord) : SudoModuleBase
     private static void AddEchoChannel(ISocketMessageChannel channel, ulong channelId, GameMode mode)
     {
         Action<string, string?> l = Echo;
-        EchoUtil.TaggedForwarders.Add(l);
-        Channels.Add((channelId, mode), new EchoChannel(channelId, channel.Name, mode, l));
+        if (Channels.TryAdd((channelId, mode), new EchoChannel(channelId, channel.Name, mode, l)))
+            EchoUtil.TaggedForwarders.Add(l);
         return;
 
         void Echo(string message, string? gameTag)
@@ -90,14 +90,13 @@ public class EchoModule(SysCordContext cord) : SudoModuleBase
     {
         var channelId = Context.Interaction.Channel.Id;
         var key = (channelId, cord.HubConfig.Mode);
-        if (!Channels.TryGetValue(key, out var echo))
+        if (!Channels.TryRemove(key, out var echo))
         {
             await RespondAsync("Not echoing in this channel.").ConfigureAwait(false);
             return;
         }
 
         EchoUtil.TaggedForwarders.Remove(echo.Action);
-        Channels.Remove(key);
         cord.Settings.EchoChannels.RemoveAll(z => z.ID == channelId);
         await RespondAsync($"Echoes cleared from channel: {Context.Interaction.Channel.Name}").ConfigureAwait(false);
     }
@@ -109,7 +108,7 @@ public class EchoModule(SysCordContext cord) : SudoModuleBase
         var ids = cord.Settings.EchoChannels.List.Select(z => z.ID).ToHashSet();
         foreach (var id in ids)
         {
-            if (Channels.Remove((id, mode), out var l))
+            if (Channels.TryRemove((id, mode), out var l))
                 EchoUtil.TaggedForwarders.Remove(l.Action);
         }
 

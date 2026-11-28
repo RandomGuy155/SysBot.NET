@@ -10,6 +10,8 @@ public abstract class PokeRoutineExecutorBase(IConsoleBotManaged<IConsoleConnect
 {
     public static readonly System.Version BotbaseVersion = new(2, 5);
 
+    public abstract GameMode Mode { get; }
+
     public LanguageID GameLang { get; private set; }
     public GameVersion Version { get; private set; }
     public EntityContext Context { get; private set; }

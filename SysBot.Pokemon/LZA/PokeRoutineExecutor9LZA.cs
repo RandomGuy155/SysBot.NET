@@ -13,7 +13,7 @@ namespace SysBot.Pokemon;
 
 public abstract class PokeRoutineExecutor9LZA(PokeBotState Config) : PokeRoutineExecutor<PA9>(Config)
 {
-    protected override GameMode Mode => GameMode.LZA;
+    public override GameMode Mode => GameMode.LZA;
     protected PokeDataOffsetsLZA Offsets { get; } = new();
 
     public override Task<PA9> ReadPokemon(ulong offset, CancellationToken token) => ReadPokemon(offset, BoxFormatSlotSize, token);

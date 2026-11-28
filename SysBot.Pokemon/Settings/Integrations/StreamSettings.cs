@@ -125,6 +125,13 @@ public class StreamSettings
     [Category(Operation), Description("Format to display the Completed Trades. {0} = Count")]
     public string CompletedTradesFormat { get; set; } = "Completed Trades: {0}";
 
+    private static string GetAssetDirectory(PokeRoutineExecutorBase b)
+    {
+        var dir = Path.Combine(Directory.GetCurrentDirectory(), b.Mode.ToString());
+        Directory.CreateDirectory(dir);
+        return dir;
+    }
+
     public void StartTrade<T>(PokeRoutineExecutorBase b, PokeTradeDetail<T> detail, PokeTradeHub<T> hub) where T : PKM, new()
     {
         if (!CreateAssets)
@@ -132,24 +139,25 @@ public class StreamSettings
 
         try
         {
+            var dir = GetAssetDirectory(b);
             if (CreateTradeStart)
-                GenerateBotConnection(b, detail);
+                GenerateBotConnection(dir, b, detail);
             if (CreateWaitedTime)
-                GenerateWaitedTime(detail.Time);
+                GenerateWaitedTime(dir, detail.Time);
             if (CreateEstimatedTime)
-                GenerateEstimatedTime(hub);
+                GenerateEstimatedTime(dir, hub);
             if (CreateUsersInQueue)
-                GenerateUsersInQueue(hub.Queues.Info.Count);
+                GenerateUsersInQueue(dir, hub.Queues.Info.Count);
             if (CreateOnDeck)
-                GenerateOnDeck(hub);
+                GenerateOnDeck(dir, hub);
             if (CreateOnDeck2)
-                GenerateOnDeck2(hub);
+                GenerateOnDeck2(dir, hub);
             if (CreateUserList)
-                GenerateUserList(hub);
+                GenerateUserList(dir, hub);
             if (CreateCompletedTrades)
-                GenerateCompletedTrades(hub);
+                GenerateCompletedTrades(dir, hub);
             if (CreateTradeStartSprite)
-                GenerateBotSprite(b, detail);
+                GenerateBotSprite(dir, b, detail);
         }
         catch (Exception e)
         {
@@ -164,28 +172,29 @@ public class StreamSettings
 
         try
         {
-            var files = Directory.EnumerateFiles(Directory.GetCurrentDirectory(), "*", SearchOption.TopDirectoryOnly);
+            var dir = GetAssetDirectory(b);
+            var files = Directory.EnumerateFiles(dir, "*", SearchOption.TopDirectoryOnly);
             foreach (var file in files)
             {
-                if (file.Contains(b.Connection.Name))
+                if (Path.GetFileName(file).Contains(b.Connection.Name))
                     File.Delete(file);
             }
 
             if (CreateWaitedTime)
-                File.WriteAllText("waited.txt", "00:00:00");
+                File.WriteAllText(Path.Combine(dir, "waited.txt"), "00:00:00");
             if (CreateEstimatedTime)
             {
-                File.WriteAllText("estimatedTime.txt", "Estimated time: 0 minutes");
-                File.WriteAllText("estimatedTimestamp.txt", "");
+                File.WriteAllText(Path.Combine(dir, "estimatedTime.txt"), "Estimated time: 0 minutes");
+                File.WriteAllText(Path.Combine(dir, "estimatedTimestamp.txt"), "");
             }
             if (CreateOnDeck)
-                File.WriteAllText("ondeck.txt", "Waiting...");
+                File.WriteAllText(Path.Combine(dir, "ondeck.txt"), "Waiting...");
             if (CreateOnDeck2)
-                File.WriteAllText("ondeck2.txt", "Queue is empty!");
+                File.WriteAllText(Path.Combine(dir, "ondeck2.txt"), "Queue is empty!");
             if (CreateUserList)
-                File.WriteAllText("users.txt", "None");
+                File.WriteAllText(Path.Combine(dir, "users.txt"), "None");
             if (CreateUsersInQueue)
-                File.WriteAllText("queuecount.txt", "Users in Queue: 0");
+                File.WriteAllText(Path.Combine(dir, "queuecount.txt"), "Users in Queue: 0");
         }
         catch (Exception e)
         {
@@ -193,34 +202,34 @@ public class StreamSettings
         }
     }
 
-    private void GenerateUsersInQueue(int count)
+    private void GenerateUsersInQueue(string dir, int count)
     {
         var value = string.Format(UsersInQueueFormat, count);
-        File.WriteAllText("queuecount.txt", value);
+        File.WriteAllText(Path.Combine(dir, "queuecount.txt"), value);
     }
 
-    private void GenerateWaitedTime(DateTime time)
+    private void GenerateWaitedTime(string dir, DateTime time)
     {
         var now = DateTime.UtcNow;
         var difference = now - time;
         var value = difference.ToString(WaitedTimeFormat);
-        File.WriteAllText("waited.txt", value);
+        File.WriteAllText(Path.Combine(dir, "waited.txt"), value);
     }
 
-    private void GenerateEstimatedTime<T>(PokeTradeHub<T> hub) where T : PKM, new()
+    private void GenerateEstimatedTime<T>(string dir, PokeTradeHub<T> hub) where T : PKM, new()
     {
         var count = hub.Queues.Info.Count;
         var estimate = hub.Config.Queues.EstimateDelay(count, hub.Bots.Count);
 
         // Minutes
         var wait = string.Format(EstimatedTimeFormat, estimate);
-        File.WriteAllText("estimatedTime.txt", wait);
+        File.WriteAllText(Path.Combine(dir, "estimatedTime.txt"), wait);
 
         // Expected to be fulfilled at this time
         var now = DateTime.UtcNow;
         var difference = now.AddMinutes(estimate);
         var date = difference.ToString(EstimatedFulfillmentFormat);
-        File.WriteAllText("estimatedTimestamp.txt", date);
+        File.WriteAllText(Path.Combine(dir, "estimatedTimestamp.txt"), date);
     }
 
     public void StartEnterCode(PokeRoutineExecutorBase b)
@@ -230,9 +239,9 @@ public class StreamSettings
 
         try
         {
-            var file = GetBlockFileName(b);
+            var file = GetBlockFileName(GetAssetDirectory(b), b);
             if (CopyImageFile && File.Exists(TradeBlockFile))
-                File.Copy(TradeBlockFile, file);
+                File.Copy(TradeBlockFile, file, overwrite: true);
             else
                 File.WriteAllBytes(file, BlackPixel);
         }
@@ -258,7 +267,7 @@ public class StreamSettings
     {
         try
         {
-            var file = GetBlockFileName(b);
+            var file = GetBlockFileName(GetAssetDirectory(b), b);
             if (File.Exists(file))
                 File.Delete(file);
         }
@@ -268,51 +277,51 @@ public class StreamSettings
         }
     }
 
-    private string GetBlockFileName(PokeRoutineExecutorBase b) => string.Format(TradeBlockFormat, b.Connection.Name);
+    private string GetBlockFileName(string dir, PokeRoutineExecutorBase b) => Path.Combine(dir, string.Format(TradeBlockFormat, b.Connection.Name));
 
-    private void GenerateBotConnection<T>(PokeRoutineExecutorBase b, PokeTradeDetail<T> detail) where T : PKM, new()
+    private void GenerateBotConnection<T>(string dir, PokeRoutineExecutorBase b, PokeTradeDetail<T> detail) where T : PKM, new()
     {
         var file = b.Connection.Name;
         var name = string.Format(TrainerTradeStart, detail.Id, detail.Trainer.TrainerName, (Species)detail.TradeData.Species);
-        File.WriteAllText($"{file}.txt", name);
+        File.WriteAllText(Path.Combine(dir, $"{file}.txt"), name);
     }
 
-    private static void GenerateBotSprite<T>(PokeRoutineExecutorBase b, PokeTradeDetail<T> detail) where T : PKM, new()
+    private static void GenerateBotSprite<T>(string dir, PokeRoutineExecutorBase b, PokeTradeDetail<T> detail) where T : PKM, new()
     {
         var func = CreateSpriteFile;
         if (func == null)
             return;
         var file = b.Connection.Name;
         var pk = detail.TradeData;
-        func.Invoke(pk, $"sprite_{file}.png");
+        func.Invoke(pk, Path.Combine(dir, $"sprite_{file}.png"));
     }
 
-    private void GenerateOnDeck<T>(PokeTradeHub<T> hub) where T : PKM, new()
+    private void GenerateOnDeck<T>(string dir, PokeTradeHub<T> hub) where T : PKM, new()
     {
         IEnumerable<string> ondeck = hub.Queues.Info.GetUserList(OnDeckFormat);
         ondeck = ondeck.Skip(OnDeckSkip).Take(OnDeckTake); // filter down
-        File.WriteAllText("ondeck.txt", string.Join(OnDeckSeparator, ondeck));
+        File.WriteAllText(Path.Combine(dir, "ondeck.txt"), string.Join(OnDeckSeparator, ondeck));
     }
 
-    private void GenerateOnDeck2<T>(PokeTradeHub<T> hub) where T : PKM, new()
+    private void GenerateOnDeck2<T>(string dir, PokeTradeHub<T> hub) where T : PKM, new()
     {
         IEnumerable<string> ondeck = hub.Queues.Info.GetUserList(OnDeckFormat2);
         ondeck = ondeck.Skip(OnDeckSkip2).Take(OnDeckTake2); // filter down
-        File.WriteAllText("ondeck2.txt", string.Join(OnDeckSeparator2, ondeck));
+        File.WriteAllText(Path.Combine(dir, "ondeck2.txt"), string.Join(OnDeckSeparator2, ondeck));
     }
 
-    private void GenerateUserList<T>(PokeTradeHub<T> hub) where T : PKM, new()
+    private void GenerateUserList<T>(string dir, PokeTradeHub<T> hub) where T : PKM, new()
     {
         IEnumerable<string> users = hub.Queues.Info.GetUserList(UserListFormat);
         users = users.Skip(UserListSkip);
         if (UserListTake > 0)
             users = users.Take(UserListTake); // filter down
-        File.WriteAllText("users.txt", string.Join(UserListSeparator, users));
+        File.WriteAllText(Path.Combine(dir, "users.txt"), string.Join(UserListSeparator, users));
     }
 
-    private void GenerateCompletedTrades<T>(PokeTradeHub<T> hub) where T : PKM, new()
+    private void GenerateCompletedTrades<T>(string dir, PokeTradeHub<T> hub) where T : PKM, new()
     {
         var msg = string.Format(CompletedTradesFormat, hub.Config.Trade.CompletedTrades);
-        File.WriteAllText("completed.txt", msg);
+        File.WriteAllText(Path.Combine(dir, "completed.txt"), msg);
     }
 }

@@ -13,7 +13,7 @@ namespace SysBot.Pokemon;
 
 public abstract class PokeRoutineExecutor9SV(PokeBotState Config) : PokeRoutineExecutor<PK9>(Config)
 {
-    protected override GameMode Mode => GameMode.SV;
+    public override GameMode Mode => GameMode.SV;
     protected PokeDataOffsetsSV Offsets { get; } = new();
 
     public override Task<PK9> ReadPokemon(ulong offset, CancellationToken token) => ReadPokemon(offset, BoxFormatSlotSize, token);

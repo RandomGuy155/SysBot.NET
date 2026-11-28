@@ -13,7 +13,6 @@ public abstract class PokeRoutineExecutor<T>(IConsoleBotManaged<IConsoleConnecti
     : PokeRoutineExecutorBase(Config)
     where T : PKM, new()
 {
-    protected abstract GameMode Mode { get; }
     protected void Echo(string message) => EchoUtil.Echo(message, Mode.ToString());
 
     public static readonly TrackedUserLog PreviousUsers = new();

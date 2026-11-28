@@ -13,7 +13,7 @@ namespace SysBot.Pokemon;
 
 public abstract class PokeRoutineExecutor8BS(PokeBotState Config) : PokeRoutineExecutor<PB8>(Config)
 {
-    protected override GameMode Mode => GameMode.BDSP;
+    public override GameMode Mode => GameMode.BDSP;
     protected IPokeDataOffsetsBS Offsets { get; private set; } = new PokeDataOffsetsBS_BD();
 
     public override Task<PB8> ReadPokemon(ulong offset, CancellationToken token) => ReadPokemon(offset, BoxFormatSlotSize, token);

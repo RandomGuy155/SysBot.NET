@@ -62,10 +62,10 @@ namespace SysBot.Pokemon.WinForms
             // PB_Lamp
             // 
             PB_Lamp.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
-            PB_Lamp.Location = new System.Drawing.Point(4, 4);
+            PB_Lamp.Location = new System.Drawing.Point(4, 6);
             PB_Lamp.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             PB_Lamp.Name = "PB_Lamp";
-            PB_Lamp.Size = new System.Drawing.Size(30, 33);
+            PB_Lamp.Size = new System.Drawing.Size(30, 30);
             PB_Lamp.TabIndex = 4;
             PB_Lamp.TabStop = false;
             // 

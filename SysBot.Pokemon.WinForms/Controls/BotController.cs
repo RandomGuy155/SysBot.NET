@@ -56,6 +56,16 @@ public partial class BotController : UserControl
         }
     }
 
+    protected override void ScaleControl(SizeF factor, BoundsSpecified specified)
+    {
+        base.ScaleControl(factor, specified);
+        var side = Math.Min(PB_Lamp.Width, PB_Lamp.Height);
+        PB_Lamp.Size = new Size(side, side);
+        PB_Lamp.Top = (Height - side) / 2;
+        if (L_Left.Left < PB_Lamp.Right + 2)
+            L_Left.Left = PB_Lamp.Right + 2;
+    }
+
     public void Initialize(IPokeBotRunner runner, PokeBotState cfg)
     {
         Runner = runner;

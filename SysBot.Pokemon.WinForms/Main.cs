@@ -203,28 +203,67 @@ public sealed partial class Main : Form
 
         PopulateRoutines((ProgramMode)WinFormsUtil.GetIndex(CB_Game));
 
-        PopulateVerticalTabs(TC_Hub, "Shared", PG_Hub);
+        PopulateVerticalTabs(TC_Hub, "Shared", PG_Hub, []);
         PG_Hub.SelectedObject = new SharedHubView(Config);
 
         LogForwarder = new TextBoxForwarder(RTB_Logs, ResolveBotMode);
         LogUtil.Forwarders.Add(LogForwarder);
 
-        PopulateVerticalTabs(TC_Logs, "All", RTB_Logs);
+        PopulateVerticalTabs(TC_Logs, "All", RTB_Logs, []);
     }
 
-    private static void PopulateVerticalTabs(TabControl tc, string defaultLabel, Control sharedContent)
+    private ProgramMode[] GetActiveModes() =>
+        SupportedModes.Where(mode =>
+            Runners.ContainsKey(mode)
+            || Bots.Any(b => Config.GetEffectiveMode(b) == mode)).ToArray();
+
+    private void RefreshGameTabs()
     {
+        var modes = GetActiveModes();
+        if (PopulateVerticalTabs(TC_Hub, "Shared", PG_Hub, modes))
+            TC_Hub_SelectedIndexChanged(TC_Hub, EventArgs.Empty);
+        if (PopulateVerticalTabs(TC_Logs, "All", RTB_Logs, modes))
+            TC_Logs_SelectedIndexChanged(TC_Logs, EventArgs.Empty);
+    }
+
+    private static bool PopulateVerticalTabs(TabControl tc, string defaultLabel, Control sharedContent, ProgramMode[] modes)
+    {
+        var expectedCount = 1 + modes.Length;
+        if (tc.TabPages.Count == expectedCount)
+        {
+            bool same = tc.TabPages[0].Tag is 0;
+            for (int i = 0; same && i < modes.Length; i++)
+                same = tc.TabPages[i + 1].Tag is int tag && tag == (int)modes[i];
+            if (same)
+                return false;
+        }
+
+        var selectedTag = tc.SelectedTab?.Tag is int cur ? cur : 0;
+
         tc.SuspendLayout();
+        sharedContent.Parent?.Controls.Remove(sharedContent);
         tc.TabPages.Clear();
 
         var first = new TabPage(defaultLabel) { Tag = 0, Padding = Padding.Empty, Margin = Padding.Empty };
+        if (Application.IsDarkModeEnabled)
+            WinFormsUtil.ReformatDark(first);
         tc.TabPages.Add(first);
-        foreach (var mode in SupportedModes)
-            tc.TabPages.Add(new TabPage(mode.ToString()) { Tag = (int)mode, Padding = Padding.Empty, Margin = Padding.Empty });
 
-        first.Controls.Add(sharedContent);
-        tc.SelectedIndex = 0;
+        TabPage target = first;
+        foreach (var mode in modes)
+        {
+            var page = new TabPage(mode.ToString()) { Tag = (int)mode, Padding = Padding.Empty, Margin = Padding.Empty };
+            if (Application.IsDarkModeEnabled)
+                WinFormsUtil.ReformatDark(page);
+            tc.TabPages.Add(page);
+            if ((int)mode == selectedTag)
+                target = page;
+        }
+
+        target.Controls.Add(sharedContent);
+        tc.SelectedTab = target;
         tc.ResumeLayout();
+        return true;
     }
 
     private void PopulateRoutines(ProgramMode mode)
@@ -291,7 +330,10 @@ public sealed partial class Main : Form
 
         LogUtil.LogInfo("Starting all bots...");
         if (Runners.Count == 0 && Config.Mode != ProgramMode.None)
+        {
             GetOrCreateRunner(Config.Mode);
+            RefreshGameTabs();
+        }
 
         foreach (var runner in Runners.Values)
         {
@@ -390,6 +432,7 @@ public sealed partial class Main : Form
 
         AddBotControl(runner, cfg);
         Bots.Add(cfg);
+        RefreshGameTabs();
         UpdateWindowTitle();
         return true;
     }
@@ -431,6 +474,7 @@ public sealed partial class Main : Form
             if (!runner.IsRunning && !runner.RunOnce && !Bots.Any(b => Config.GetEffectiveMode(b) == runner.Mode))
                 Runners.Remove(runner.Mode);
 
+            RefreshGameTabs();
             UpdateWindowTitle();
         };
     }

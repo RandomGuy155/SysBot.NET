@@ -7,7 +7,7 @@ using PKHeX.Core;
 namespace SysBot.Pokemon.Discord;
 
 [RequireContext(ContextType.Guild)]
-public class SeedCheckModule<T> : SlashModuleBase where T : PKM, new()
+public class SeedCheckModule<T>(DiscordManager manager) : SlashModuleBase where T : PKM, new()
 {
     private static TradeQueueInfo<T> Info => SysCord<T>.Runner.Hub.Queues.Info;
 
@@ -23,7 +23,7 @@ public class SeedCheckModule<T> : SlashModuleBase where T : PKM, new()
         await DeferAsync(ephemeral: true).ConfigureAwait(false);
 
         code ??= Info.GetRandomTradeCode();
-        await QueueHelper<T>.AddToQueueAsync(Context, (int)code, new T(), PokeRoutineType.SeedCheck, PokeTradeType.Seed).ConfigureAwait(false);
+        await QueueHelper<T>.AddToQueueAsync(Context, (int)code, new T(), PokeRoutineType.SeedCheck, PokeTradeType.Seed, manager).ConfigureAwait(false);
     }
 
     [SlashCommand("find-frame", "Prints the next shiny frame from a seed.")]

@@ -8,7 +8,6 @@ namespace SysBot.Pokemon.Discord;
 public static class QueueRestrictions
 {
     private const uint MaxTradeCode = 9999_9999;
-    private static DiscordManager Manager => SysCordSettings.Manager;
 
     /// <param name="context">The interaction context.</param>
     extension(IInteractionContext context)
@@ -53,7 +52,7 @@ public static class QueueRestrictions
             return false;
         }
 
-        public RequestSignificance GetSignificance() => context.User.GetSignificance();
+        public RequestSignificance GetSignificance(DiscordManager? manager = null) => context.User.GetSignificance(manager);
     }
 
     extension(IUser user)
@@ -61,22 +60,24 @@ public static class QueueRestrictions
         /// <summary>
         /// Gets the significance of the user based on their ID and roles.
         /// </summary>
-        public RequestSignificance GetSignificance()
+        public RequestSignificance GetSignificance(DiscordManager? manager = null)
         {
+            var mgr = manager ?? SysCordSettings.Manager;
+
             // Check user ID.
             var userId = user.Id;
-            if (Manager.IsTeamOrOwner(userId))
+            if (mgr.IsTeamOrOwner(userId))
                 return RequestSignificance.Owner;
 
             // Don't check Team membership for special favor.
 
-            if (Manager.CanUseSudo(userId))
+            if (mgr.CanUseSudo(userId))
                 return RequestSignificance.Favored;
 
             // Check roles, might be a special role granted.
             // Stringy names are for user convenience; must trust externally managed guilds the bot is added to (else we should use role IDs).
             return user is SocketGuildUser g
-                ? Manager.GetSignificance(g.Roles.Select(z => z.Name))
+                ? mgr.GetSignificance(g.Roles.Select(z => z.Name))
                 : RequestSignificance.None;
         }
     }

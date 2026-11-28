@@ -6,7 +6,7 @@ using PKHeX.Core;
 namespace SysBot.Pokemon.Discord;
 
 [RequireContext(ContextType.Guild)]
-public class DumpModule<T> : SlashModuleBase where T : PKM, new()
+public class DumpModule<T>(DiscordManager manager) : SlashModuleBase where T : PKM, new()
 {
     private static TradeQueueInfo<T> Info => SysCord<T>.Runner.Hub.Queues.Info;
 
@@ -22,7 +22,7 @@ public class DumpModule<T> : SlashModuleBase where T : PKM, new()
         await DeferAsync(ephemeral: true).ConfigureAwait(false);
 
         code ??= Info.GetRandomTradeCode();
-        await QueueHelper<T>.AddToQueueAsync(Context, (int)code, new T(), PokeRoutineType.Dump, PokeTradeType.Dump).ConfigureAwait(false);
+        await QueueHelper<T>.AddToQueueAsync(Context, (int)code, new T(), PokeRoutineType.Dump, PokeTradeType.Dump, manager).ConfigureAwait(false);
     }
 
     /*

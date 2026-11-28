@@ -8,12 +8,13 @@ namespace SysBot.Pokemon.Discord;
 
 public static class QueueHelper<T> where T : PKM, new()
 {
-    public static async Task AddToQueueAsync(IInteractionContext context, int code, T pk, PokeRoutineType routine, PokeTradeType type)
+    public static async Task AddToQueueAsync(IInteractionContext context, int code, T pk, PokeRoutineType routine, PokeTradeType type, DiscordManager? manager = null)
     {
+        var mgr = manager ?? SysCordSettings.Manager;
         QueueJoinResult? check = null;
         try
         {
-            check = AddToTradeQueue(context, pk, code, routine, type);
+            check = AddToTradeQueue(context, pk, code, routine, type, mgr);
             var result = check.Result;
             if (!result)
             {
@@ -47,7 +48,7 @@ public static class QueueHelper<T> where T : PKM, new()
                 info.Remove(detail);
             }
 
-            await HandleDiscordExceptionAsync(context, ex).ConfigureAwait(false);
+            await HandleDiscordExceptionAsync(context, ex, mgr).ConfigureAwait(false);
         }
     }
 
@@ -91,7 +92,7 @@ public static class QueueHelper<T> where T : PKM, new()
     /// <param name="Estimate">Estimated time (in minutes) that the user will need to wait before a bot picks up their request.</param>
     private sealed record QueueJoinResult(bool Result, TradeEntry<T> Join, string Message, int Position = 0, float Estimate = 0);
 
-    private static QueueJoinResult AddToTradeQueue(IInteractionContext trader, T pk, int code, PokeRoutineType routine, PokeTradeType type)
+    private static QueueJoinResult AddToTradeQueue(IInteractionContext trader, T pk, int code, PokeRoutineType routine, PokeTradeType type, DiscordManager manager)
     {
         var channel = trader.Channel;
         var user = trader.User;
@@ -99,7 +100,7 @@ public static class QueueHelper<T> where T : PKM, new()
         var name = user.Username;
         var trainer = new PokeTradeTrainerInfo(name, userId);
         var notifier = new DiscordTradeNotifier<T>(pk, trainer, code, trader);
-        var sig = trader.GetSignificance();
+        var sig = trader.GetSignificance(manager);
         var detail = new PokeTradeDetail<T>
         {
             Type = type,
@@ -135,7 +136,7 @@ public static class QueueHelper<T> where T : PKM, new()
         return new(true, trade, message, position.Position, estimate);
     }
 
-    private static async Task HandleDiscordExceptionAsync(IInteractionContext context, HttpException ex)
+    private static async Task HandleDiscordExceptionAsync(IInteractionContext context, HttpException ex, DiscordManager manager)
     {
         string message = string.Empty;
         switch (ex.DiscordCode)
@@ -149,7 +150,7 @@ public static class QueueHelper<T> where T : PKM, new()
                     var permissions = self.GetPermissions(guildChannel);
                     if (!permissions.SendMessages)
                     {
-                        message = $"{SysCordSettings.Manager.Owner.Mention} - You must grant me \"Send Messages\" permissions!";
+                        message = $"{manager.Owner.Mention} - You must grant me \"Send Messages\" permissions!";
                         Base.LogUtil.LogError(message);
                         return;
                     }

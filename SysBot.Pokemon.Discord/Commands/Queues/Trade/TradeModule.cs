@@ -12,7 +12,7 @@ namespace SysBot.Pokemon.Discord;
 [Group("trade", "Commands for starting a trade session with the bot.")]
 [RequireContext(ContextType.Guild)]
 [RequireOpenDms]
-public partial class TradeModule<T> : SlashModuleBase where T : PKM, new() // partial, allow other files to have commands in this group
+public partial class TradeModule<T>(DiscordManager manager) : SlashModuleBase where T : PKM, new() // partial, allow other files to have commands in this group
 {
     private static TradeQueueInfo<T> Info => SysCord<T>.Runner.Hub.Queues.Info;
 
@@ -288,6 +288,6 @@ public partial class TradeModule<T> : SlashModuleBase where T : PKM, new() // pa
             return;
         }
 
-        await QueueHelper<T>.AddToQueueAsync(Context, code, pk, PokeRoutineType.LinkTrade, PokeTradeType.Specific).ConfigureAwait(false);
+        await QueueHelper<T>.AddToQueueAsync(Context, code, pk, PokeRoutineType.LinkTrade, PokeTradeType.Specific, manager).ConfigureAwait(false);
     }
 }

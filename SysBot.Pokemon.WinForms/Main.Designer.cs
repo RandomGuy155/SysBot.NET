@@ -138,7 +138,6 @@ namespace SysBot.Pokemon.WinForms
             NUD_Port.Location = new System.Drawing.Point(209, 4);
             NUD_Port.Margin = new System.Windows.Forms.Padding(0, 4, 4, 4);
             NUD_Port.Name = "NUD_Port";
-            NUD_Port.ReadOnly = true;
             NUD_Port.Size = new System.Drawing.Size(67, 25);
             NUD_Port.TabIndex = 6;
             NUD_Port.Text = "6000";

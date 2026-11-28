@@ -210,7 +210,7 @@ public sealed class SysCord<T> where T : PKM, new()
         EchoModule.RestoreChannels(_client, cfg);
 
         // Restore Logging
-        LogModule.RestoreLogging(_client, cfg);
+        LogModule.RestoreLogging(_client, cfg, Hub.Config.Mode);
         TradeStartModule<T>.RestoreTradeStarting(_client, cfg);
 
         // Don't let it load more than once in case of Discord hiccups.

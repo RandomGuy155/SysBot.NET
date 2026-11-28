@@ -101,7 +101,7 @@ public sealed class SysCordHost
             RestoreChannels = client =>
             {
                 EchoModule.RestoreChannels(client, hub.Config.Discord);
-                LogModule.RestoreLogging(client, hub.Config.Discord);
+                LogModule.RestoreLogging(client, hub.Config.Discord, mode);
                 TradeStartModule<T>.RestoreTradeStarting(client, hub.Config.Discord);
             },
             GetLastTradeBotTime = () => hub.Bots.ToArray()

@@ -77,6 +77,30 @@ public sealed partial class Main : Form
             return null;
         if (BotModeLookup.TryGetValue(identity, out var mode))
             return mode;
+
+        // A bot's Connection.Label changes after trainer identification (e.g. IP -> "SysBot-123456").
+        try
+        {
+            foreach (var (runnerMode, runner) in Runners)
+            {
+                if (runner is not BotRunner<PokeBotState> br)
+                    continue;
+                foreach (var src in br.Bots)
+                {
+                    var conn = src.Bot.Connection;
+                    if (string.Equals(conn.Label, identity, StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(conn.Name, identity, StringComparison.OrdinalIgnoreCase))
+                    {
+                        BotModeLookup[identity] = runnerMode;
+                        return runnerMode;
+                    }
+                }
+            }
+        }
+        catch
+        {
+            // Ignore transient collection modification while bots are being added/removed.
+        }
         return null;
     }
 

@@ -10,13 +10,13 @@ namespace SysBot.Pokemon.Discord;
 [Group("log", "Logging commands.")]
 public class LogModule(SysCordContext cord) : SudoModuleBase
 {
-    private static readonly Dictionary<ulong, ChannelLogger> Channels = [];
-    public static void RestoreLogging(DiscordSocketClient discord, DiscordSettings settings)
+    private static readonly Dictionary<(ulong ChannelId, ProgramMode Mode), ChannelLogger> Channels = [];
+    public static void RestoreLogging(DiscordSocketClient discord, DiscordSettings settings, ProgramMode mode = ProgramMode.None)
     {
         int count = 0;
         foreach (var channelAccess in settings.LoggingChannels)
         {
-            if (Channels.ContainsKey(channelAccess.ID))
+            if (Channels.ContainsKey((channelAccess.ID, mode)))
                 continue;
             if (discord.GetChannel(channelAccess.ID) is not ISocketMessageChannel channel)
             {
@@ -24,7 +24,7 @@ public class LogModule(SysCordContext cord) : SudoModuleBase
                 continue;
             }
 
-            AddLogChannel(channel, channelAccess.ID);
+            AddLogChannel(channel, channelAccess.ID, mode);
             count++;
         }
 
@@ -41,29 +41,31 @@ public class LogModule(SysCordContext cord) : SudoModuleBase
         }
 
         var channelId = channel.Id;
-        if (Channels.ContainsKey(channelId))
+        var mode = cord.HubConfig.Mode;
+        if (Channels.ContainsKey((channelId, mode)))
         {
             await RespondAsync("Already logging here.").ConfigureAwait(false);
             return;
         }
 
-        AddLogChannel(channel, channelId);
+        AddLogChannel(channel, channelId, mode);
         cord.Settings.LoggingChannels.AddIfNew(GetReference(channel));
         await RespondAsync("Added logging output to this channel!").ConfigureAwait(false);
     }
 
-    private static void AddLogChannel(ISocketMessageChannel channel, ulong channelId)
+    private static void AddLogChannel(ISocketMessageChannel channel, ulong channelId, ProgramMode mode)
     {
-        var logger = new ChannelLogger(channel);
+        var logger = new ChannelLogger(channel, mode);
         LogUtil.Forwarders.Add(logger);
-        Channels.Add(channelId, logger);
+        Channels.Add((channelId, mode), logger);
     }
 
     [SlashCommand("info", "Dumps the logging settings.")]
     public async Task DumpLogInfoAsync()
     {
+        var mode = cord.HubConfig.Mode;
         var ids = cord.Settings.LoggingChannels.List.Select(z => z.ID).ToHashSet();
-        var entries = Channels.Where(c => ids.Contains(c.Key)).Select(c => $"{c.Key} - {c.Value}");
+        var entries = Channels.Where(c => c.Key.Mode == mode && ids.Contains(c.Key.ChannelId)).Select(c => $"{c.Key.ChannelId} - {c.Value}");
         var text = string.Join('\n', entries);
         await RespondAsync(string.IsNullOrEmpty(text) ? "No logging channels configured." : text).ConfigureAwait(false);
     }
@@ -72,13 +74,14 @@ public class LogModule(SysCordContext cord) : SudoModuleBase
     public async Task ClearLogsAsync()
     {
         var channelId = Context.Interaction.Channel.Id;
-        if (!Channels.TryGetValue(channelId, out var log))
+        var key = (channelId, cord.HubConfig.Mode);
+        if (!Channels.TryGetValue(key, out var log))
         {
-            await RespondAsync("Not echoing in this channel.").ConfigureAwait(false);
+            await RespondAsync("Not logging in this channel.").ConfigureAwait(false);
             return;
         }
         LogUtil.Forwarders.Remove(log);
-        Channels.Remove(channelId);
+        Channels.Remove(key);
         cord.Settings.LoggingChannels.RemoveAll(z => z.ID == channelId);
         await RespondAsync($"Logging cleared from channel: {Context.Interaction.Channel.Name}").ConfigureAwait(false);
     }
@@ -86,10 +89,11 @@ public class LogModule(SysCordContext cord) : SudoModuleBase
     [SlashCommand("clear-all", "Clears all logging settings.")]
     public async Task ClearLogsAllAsync()
     {
+        var mode = cord.HubConfig.Mode;
         var ids = cord.Settings.LoggingChannels.List.Select(z => z.ID).ToHashSet();
         foreach (var id in ids)
         {
-            if (Channels.Remove(id, out var l))
+            if (Channels.Remove((id, mode), out var l))
                 LogUtil.Forwarders.Remove(l);
         }
 

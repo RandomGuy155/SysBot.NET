@@ -5,10 +5,17 @@ using SysBot.Base;
 
 namespace SysBot.Pokemon.Discord;
 
-public sealed record ChannelLogger(ISocketMessageChannel Channel) : ILogForwarder
+public sealed record ChannelLogger(ISocketMessageChannel Channel, ProgramMode Mode = ProgramMode.None) : ILogForwarder
 {
     public void Forward(string message, [CallerMemberName] string identity = "")
     {
+        if (Mode != ProgramMode.None && LogUtil.GameTagResolver is { } resolver)
+        {
+            var tag = resolver(identity);
+            if (!string.Equals(tag, Mode.ToString(), StringComparison.OrdinalIgnoreCase))
+                return;
+        }
+
         try
         {
             var text = GetMessage(message, identity);

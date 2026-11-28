@@ -74,7 +74,13 @@ public class TwitchBot<T> where T : PKM, new()
 
         _ = _client.ConnectAsync();
 
-        EchoUtil.Forwarders.Add(msg => _ = _client.SendMessageAsync(_channel, msg));
+        var modeTag = hub.Config.Mode.ToString();
+        EchoUtil.TaggedForwarders.Add((msg, gameTag) =>
+        {
+            if (gameTag is not null && !string.Equals(gameTag, modeTag, StringComparison.OrdinalIgnoreCase))
+                return;
+            _ = _client.SendMessageAsync(_channel, msg);
+        });
 
         // Turn on if verified
         // Hub.Queues.Forwarders.Add((bot, detail) => client.SendMessage(Channel, $"{bot.Connection.Name} is now trading (ID {detail.ID}) {detail.Trainer.TrainerName}"));

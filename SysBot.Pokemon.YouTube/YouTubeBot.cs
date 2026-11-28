@@ -39,7 +39,13 @@ public class YouTubeBot<T> where T : PKM, new()
 
                 _client = new ChatClient(connection);
                 _client.OnMessagesReceived += Client_OnMessagesReceived;
-                EchoUtil.Forwarders.Add(msg => _client.SendMessage(msg));
+                var modeTag = _hub.Config.Mode.ToString();
+                EchoUtil.TaggedForwarders.Add((msg, gameTag) =>
+                {
+                    if (gameTag is not null && !string.Equals(gameTag, modeTag, StringComparison.OrdinalIgnoreCase))
+                        return;
+                    _ = _client.SendMessage(msg);
+                });
 
                 if (await _client.Connect().ConfigureAwait(false))
                     await Task.Delay(-1).ConfigureAwait(false);

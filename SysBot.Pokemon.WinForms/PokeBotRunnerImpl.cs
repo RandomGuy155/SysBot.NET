@@ -1,7 +1,10 @@
+using System;
+using System.Collections.Concurrent;
 using System.IO;
 using System.Windows.Forms;
 using PKHeX.Core;
 using PKHeX.Drawing.PokeSprite;
+using SysBot.Base;
 using SysBot.Pokemon.Discord;
 using SysBot.Pokemon.Twitch;
 using SysBot.Pokemon.YouTube;
@@ -11,6 +14,12 @@ namespace SysBot.Pokemon.WinForms;
 public interface ISharedDiscordRunner
 {
     void RegisterWithDiscordHost(SysCordHost host);
+}
+
+internal static class SharedIntegrationChannels
+{
+    public static readonly ConcurrentDictionary<string, GameMode> Twitch = new(StringComparer.OrdinalIgnoreCase);
+    public static readonly ConcurrentDictionary<string, GameMode> YouTube = new(StringComparer.OrdinalIgnoreCase);
 }
 
 /// <summary>
@@ -40,17 +49,17 @@ public class PokeBotRunnerImpl<T> : PokeBotRunner<T>, ISharedDiscordRunner where
 
     private void AddTwitchBot(TwitchSettings config)
     {
-        if (string.IsNullOrWhiteSpace(config.Token))
-            return;
         if (Twitch != null)
             return; // already created
+        if (string.IsNullOrWhiteSpace(config.Token) || string.IsNullOrWhiteSpace(config.Channel) || string.IsNullOrWhiteSpace(config.Username))
+            return;
 
-        if (string.IsNullOrWhiteSpace(config.Channel))
+        if (!SharedIntegrationChannels.Twitch.TryAdd(config.Channel, Mode))
+        {
+            var owner = SharedIntegrationChannels.Twitch[config.Channel];
+            LogUtil.LogInfo($"Skipping duplicate Twitch connection for #{config.Channel} ({Mode}); already connected for {owner}.");
             return;
-        if (string.IsNullOrWhiteSpace(config.Username))
-            return;
-        if (string.IsNullOrWhiteSpace(config.Token))
-            return;
+        }
 
         Twitch = new TwitchBot<T>(Hub.Config.Twitch, Hub);
         if (Hub.Config.Twitch.DistributionCountDown)
@@ -59,19 +68,19 @@ public class PokeBotRunnerImpl<T> : PokeBotRunner<T>, ISharedDiscordRunner where
 
     private void AddYouTubeBot(YouTubeSettings config)
     {
-        if (string.IsNullOrWhiteSpace(config.ClientID))
-            return;
         if (YouTube != null)
             return; // already created
+        if (string.IsNullOrWhiteSpace(config.ClientID) || string.IsNullOrWhiteSpace(config.ChannelID) || string.IsNullOrWhiteSpace(config.ClientSecret))
+            return;
+
+        if (!SharedIntegrationChannels.YouTube.TryAdd(config.ChannelID, Mode))
+        {
+            var owner = SharedIntegrationChannels.YouTube[config.ChannelID];
+            LogUtil.LogInfo($"Skipping duplicate YouTube connection for {config.ChannelID} ({Mode}); already connected for {owner}.");
+            return;
+        }
 
         Owner.Alert("Please log in with your web browser.");
-        if (string.IsNullOrWhiteSpace(config.ChannelID))
-            return;
-        if (string.IsNullOrWhiteSpace(config.ClientID))
-            return;
-        if (string.IsNullOrWhiteSpace(config.ClientSecret))
-            return;
-
         YouTube = new YouTubeBot<T>(Hub.Config.YouTube, Hub);
         Hub.BotSync.BarrierReleasingActions.Add(() => YouTube.StartingDistribution(config.MessageStart));
     }

@@ -12,7 +12,7 @@ public sealed class PokeBotState : BotState<PokeRoutineType, SwitchConnectionCon
     /// <summary>
     /// Optional per-bot game mode. When <see langword="null"/>, falls back to <see cref="ProgramConfig.Mode"/>.
     /// </summary>
-    public ProgramMode? Mode { get; set; }
+    public GameMode? Mode { get; set; }
 
     /// <inheritdoc/>
     public override void IterateNextRoutine() => CurrentRoutineType = NextRoutineType;

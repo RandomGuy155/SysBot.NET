@@ -5,7 +5,7 @@ namespace SysBot.Pokemon.WinForms;
 
 public static class InitUtil
 {
-    public static void InitializeStubs(ProgramMode mode, string trainer, LanguageID language)
+    public static void InitializeStubs(GameMode mode, string trainer, LanguageID language)
     {
         Trainer = trainer;
         Language = language;
@@ -17,13 +17,13 @@ public static class InitUtil
     private static LanguageID Language { get; set; } = LanguageID.English;
     private static SaveFile Get(GameVersion version) => BlankSaveFile.Get(version, Trainer, Language);
 
-    private static SaveFile GetFakeSaveFile(ProgramMode mode) => mode switch
+    private static SaveFile GetFakeSaveFile(GameMode mode) => mode switch
     {
-        ProgramMode.SWSH => Get(GameVersion.SW),
-        ProgramMode.BDSP => Get(GameVersion.BD),
-        ProgramMode.LA   => Get(GameVersion.PLA),
-        ProgramMode.SV   => Get(GameVersion.SL),
-        ProgramMode.LZA  => Get(GameVersion.ZA),
+        GameMode.SWSH => Get(GameVersion.SW),
+        GameMode.BDSP => Get(GameVersion.BD),
+        GameMode.LA   => Get(GameVersion.PLA),
+        GameMode.SV   => Get(GameVersion.SL),
+        GameMode.LZA  => Get(GameVersion.ZA),
         _                => throw new System.ArgumentOutOfRangeException(nameof(mode)),
     };
 

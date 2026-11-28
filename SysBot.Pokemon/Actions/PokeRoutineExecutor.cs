@@ -13,6 +13,9 @@ public abstract class PokeRoutineExecutor<T>(IConsoleBotManaged<IConsoleConnecti
     : PokeRoutineExecutorBase(Config)
     where T : PKM, new()
 {
+    protected abstract GameMode Mode { get; }
+    protected void Echo(string message) => EchoUtil.Echo(message, Mode.ToString());
+
     public abstract Task<T> ReadPokemon(ulong offset, CancellationToken token);
     public abstract Task<T> ReadPokemon(ulong offset, int size, CancellationToken token);
     public abstract Task<T> ReadPokemonPointer(IEnumerable<long> jumps, int size, CancellationToken token);
@@ -155,7 +158,7 @@ public abstract class PokeRoutineExecutor<T>(IConsoleBotManaged<IConsoleConnecti
                 msg += $"\nUser was banned for: {entry.Comment}";
             if (!string.IsNullOrWhiteSpace(AbuseSettings.BannedIDMatchEchoMention))
                 msg = $"{AbuseSettings.BannedIDMatchEchoMention} {msg}";
-            EchoUtil.Echo(msg);
+            Echo(msg);
             return PokeTradeResult.SuspiciousActivity;
         }
 
@@ -177,7 +180,7 @@ public abstract class PokeRoutineExecutor<T>(IConsoleBotManaged<IConsoleConnecti
                     msg += $"\nID: {TrainerNID}";
                 if (!string.IsNullOrWhiteSpace(AbuseSettings.CooldownAbuseEchoMention))
                     msg = $"{AbuseSettings.CooldownAbuseEchoMention} {msg}";
-                EchoUtil.Echo(msg);
+                Echo(msg);
                 return PokeTradeResult.SuspiciousActivity;
             }
 
@@ -204,7 +207,7 @@ public abstract class PokeRoutineExecutor<T>(IConsoleBotManaged<IConsoleConnecti
                     msg += $"\nID: {TrainerNID}";
                 if (!string.IsNullOrWhiteSpace(AbuseSettings.MultiAbuseEchoMention))
                     msg = $"{AbuseSettings.MultiAbuseEchoMention} {msg}";
-                EchoUtil.Echo(msg);
+                Echo(msg);
             }
         }
 
@@ -234,7 +237,7 @@ public abstract class PokeRoutineExecutor<T>(IConsoleBotManaged<IConsoleConnecti
                     msg += $"\nID: {TrainerNID}";
                 if (!string.IsNullOrWhiteSpace(AbuseSettings.MultiRecipientEchoMention))
                     msg = $"{AbuseSettings.MultiRecipientEchoMention} {msg}";
-                EchoUtil.Echo(msg);
+                Echo(msg);
             }
         }
 

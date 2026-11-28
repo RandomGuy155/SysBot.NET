@@ -6,16 +6,16 @@ namespace SysBot.Pokemon;
 
 public class ProgramConfig : BotList<PokeBotState>
 {
-    public ProgramMode Mode { get; set; } = ProgramMode.LZA;
+    public GameMode Mode { get; set; } = GameMode.LZA;
     public PokeTradeHubConfig Hub { get; set; } = new();
-    public Dictionary<ProgramMode, GameHubSettings> GameHubs { get; set; } = [];
+    public Dictionary<GameMode, GameHubSettings> GameHubs { get; set; } = [];
     public bool? DarkMode { get; set; }
     public int Width { get; set; }
     public int Height { get; set; }
 
-    public ProgramMode GetEffectiveMode(PokeBotState bot) => bot.Mode is { } m && m != ProgramMode.None ? m : Mode;
+    public GameMode GetEffectiveMode(PokeBotState bot) => bot.Mode ?? Mode;
 
-    public GameHubSettings GetGameHubSettings(ProgramMode mode)
+    public GameHubSettings GetGameHubSettings(GameMode mode)
     {
         if (GameHubs.TryGetValue(mode, out var existing))
             return existing;
@@ -31,9 +31,6 @@ public class ProgramConfig : BotList<PokeBotState>
     /// </summary>
     public void EnsurePrimaryHubSynced()
     {
-        if (Mode == ProgramMode.None)
-            return;
-
         if (!GameHubs.TryGetValue(Mode, out var primary))
         {
             primary = GameHubSettings.FromHub(Hub);
@@ -45,7 +42,7 @@ public class ProgramConfig : BotList<PokeBotState>
         }
     }
 
-    public PokeTradeHubConfig BuildHubConfig(ProgramMode mode)
+    public PokeTradeHubConfig BuildHubConfig(GameMode mode)
     {
         var config = new PokeTradeHubConfig { Mode = mode };
         SyncHubConfig(config);
@@ -54,9 +51,7 @@ public class ProgramConfig : BotList<PokeBotState>
 
     public void SyncHubConfig(PokeTradeHubConfig target)
     {
-        var mode = target.Mode != ProgramMode.None ? target.Mode : Mode;
-        target.Mode = mode;
-        var game = GetGameHubSettings(mode);
+        var game = GetGameHubSettings(target.Mode);
 
         // Shared scalar BaseConfig settings
         target.AntiIdle = Hub.AntiIdle;
@@ -114,10 +109,10 @@ public class ProgramConfig : BotList<PokeBotState>
     }
 
     /// <summary>
-    /// Resolves which active <see cref="ProgramMode"/> owns the given Discord <paramref name="channelId"/>
+    /// Resolves which active <see cref="GameMode"/> owns the given Discord <paramref name="channelId"/>
     /// based on each game's <see cref="GameHubSettings.ChannelWhitelist"/>.
     /// </summary>
-    public ProgramMode? ResolveModeForChannel(ulong channelId, IReadOnlyCollection<ProgramMode> activeModes)
+    public GameMode? ResolveModeForChannel(ulong channelId, IReadOnlyCollection<GameMode> activeModes)
     {
         foreach (var mode in activeModes)
         {
@@ -138,7 +133,7 @@ public class ProgramConfig : BotList<PokeBotState>
     }
 }
 
-public enum ProgramMode
+public enum GameMode
 {
     None = 0, // invalid
     SWSH = 1,

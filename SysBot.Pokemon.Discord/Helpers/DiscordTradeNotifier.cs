@@ -56,7 +56,7 @@ public sealed record DiscordTradeNotifier<T>(T Data, PokeTradeTrainerInfo Info, 
         if (result.Species != 0 && Hub.Config.Discord.ReturnPKMs)
             await Trader.SendFilePrivatelyAsync(result, "Here's what you traded me!").ConfigureAwait(false);
 
-        LogUtil.LogInfo($"Total time since queueing: {info.Age:g}");
+        LogUtil.LogInfo($"Total time since queueing: {info.Age:g}", routine.Connection.Label);
     }
 
     public async Task SendNotification(PokeRoutineExecutor<T> routine, PokeTradeDetail<T> info, string message)

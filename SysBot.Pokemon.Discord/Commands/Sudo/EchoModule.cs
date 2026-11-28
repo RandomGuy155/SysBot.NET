@@ -12,16 +12,16 @@ namespace SysBot.Pokemon.Discord;
 public class EchoModule(SysCordContext cord) : SudoModuleBase
 {
     // ReSharper disable NotAccessedPositionalProperty.Local
-    private record EchoChannel(ulong ChannelId, string ChannelName, Action<string> Action);
+    private record EchoChannel(ulong ChannelId, string ChannelName, GameMode Mode, Action<string, string?> Action);
 
-    private static readonly Dictionary<ulong, EchoChannel> Channels = [];
+    private static readonly Dictionary<(ulong ChannelId, GameMode Mode), EchoChannel> Channels = [];
 
-    public static void RestoreChannels(DiscordSocketClient discord, DiscordSettings cfg)
+    public static void RestoreChannels(DiscordSocketClient discord, DiscordSettings cfg, GameMode mode)
     {
         int count = 0;
         foreach (var channelAccess in cfg.EchoChannels)
         {
-            if (Channels.ContainsKey(channelAccess.ID))
+            if (Channels.ContainsKey((channelAccess.ID, mode)))
                 continue;
             if (discord.GetChannel(channelAccess.ID) is not ISocketMessageChannel channel)
             {
@@ -29,11 +29,11 @@ public class EchoModule(SysCordContext cord) : SudoModuleBase
                 continue;
             }
 
-            AddEchoChannel(channel, channelAccess.ID);
+            AddEchoChannel(channel, channelAccess.ID, mode);
             count++;
         }
 
-        EchoUtil.Echo($"Added echo notification to {count} Discord channel(s) on Bot startup.");
+        EchoUtil.Echo($"Added echo notification to {count} Discord channel(s) on Bot startup.", mode.ToString());
     }
 
     [SlashCommand("here", "Makes the bot echo special messages to this channel.")]
@@ -46,33 +46,41 @@ public class EchoModule(SysCordContext cord) : SudoModuleBase
         }
 
         var channelId = channel.Id;
-        if (Channels.ContainsKey(channelId))
+        var mode = cord.HubConfig.Mode;
+        if (Channels.ContainsKey((channelId, mode)))
         {
             await RespondAsync("Already notifying here.").ConfigureAwait(false);
             return;
         }
 
-        AddEchoChannel(channel, channelId);
+        AddEchoChannel(channel, channelId, mode);
         cord.Settings.EchoChannels.AddIfNew(GetReference(channel));
         await RespondAsync("Added Echo output to this channel!").ConfigureAwait(false);
     }
-    private static void AddEchoChannel(ISocketMessageChannel channel, ulong channelId)
+
+    private static void AddEchoChannel(ISocketMessageChannel channel, ulong channelId, GameMode mode)
     {
-        var l = Echo;
-        EchoUtil.Forwarders.Add(l);
-        Channels.Add(channelId, new EchoChannel(channelId, channel.Name, l));
+        Action<string, string?> l = Echo;
+        EchoUtil.TaggedForwarders.Add(l);
+        Channels.Add((channelId, mode), new EchoChannel(channelId, channel.Name, mode, l));
         return;
 
-        void Echo(string message) => channel.SendMessageAsync(message);
+        void Echo(string message, string? gameTag)
+        {
+            if (gameTag is not null && !string.Equals(gameTag, mode.ToString(), StringComparison.OrdinalIgnoreCase))
+                return;
+            channel.SendMessageAsync(message);
+        }
     }
 
-    public static bool IsEchoChannel(ISocketMessageChannel channel) => Channels.ContainsKey(channel.Id);
+    public static bool IsEchoChannel(ISocketMessageChannel channel) => Channels.Keys.Any(k => k.ChannelId == channel.Id);
 
     [SlashCommand("info", "Dumps the Echo settings.")]
     public async Task DumpEchoInfoAsync()
     {
+        var mode = cord.HubConfig.Mode;
         var ids = cord.Settings.EchoChannels.List.Select(z => z.ID).ToHashSet();
-        var entries = Channels.Where(c => ids.Contains(c.Key)).Select(c => $"{c.Key} - {c.Value}");
+        var entries = Channels.Where(c => c.Key.Mode == mode && ids.Contains(c.Key.ChannelId)).Select(c => $"{c.Key.ChannelId} - {c.Value}");
         var text = string.Join('\n', entries);
         await RespondAsync(string.IsNullOrEmpty(text) ? "No echo channels configured." : text).ConfigureAwait(false);
     }
@@ -81,14 +89,15 @@ public class EchoModule(SysCordContext cord) : SudoModuleBase
     public async Task ClearEchosAsync()
     {
         var channelId = Context.Interaction.Channel.Id;
-        if (!Channels.TryGetValue(channelId, out var echo))
+        var key = (channelId, cord.HubConfig.Mode);
+        if (!Channels.TryGetValue(key, out var echo))
         {
             await RespondAsync("Not echoing in this channel.").ConfigureAwait(false);
             return;
         }
 
-        EchoUtil.Forwarders.Remove(echo.Action);
-        Channels.Remove(channelId);
+        EchoUtil.TaggedForwarders.Remove(echo.Action);
+        Channels.Remove(key);
         cord.Settings.EchoChannels.RemoveAll(z => z.ID == channelId);
         await RespondAsync($"Echoes cleared from channel: {Context.Interaction.Channel.Name}").ConfigureAwait(false);
     }
@@ -96,11 +105,12 @@ public class EchoModule(SysCordContext cord) : SudoModuleBase
     [SlashCommand("clear-all", "Clears all Echo channel settings.")]
     public async Task ClearEchosAllAsync()
     {
+        var mode = cord.HubConfig.Mode;
         var ids = cord.Settings.EchoChannels.List.Select(z => z.ID).ToHashSet();
         foreach (var id in ids)
         {
-            if (Channels.Remove(id, out var l))
-                EchoUtil.Forwarders.Remove(l.Action);
+            if (Channels.Remove((id, mode), out var l))
+                EchoUtil.TaggedForwarders.Remove(l.Action);
         }
 
         cord.Settings.EchoChannels.Clear();

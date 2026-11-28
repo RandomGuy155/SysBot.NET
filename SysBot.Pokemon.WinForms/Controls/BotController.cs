@@ -79,7 +79,7 @@ public partial class BotController : UserControl
     public void ReloadStatus()
     {
         var bot = GetBot().Bot;
-        var modeTag = Runner is { Mode: not ProgramMode.None } r ? $"[{r.Mode}] " : string.Empty;
+        var modeTag = Runner is not null ? $"[{Runner.Mode}] " : string.Empty;
         L_Left.Text = $"{bot.Connection.Name}{Environment.NewLine}{modeTag}{State.InitialRoutine}";
         UpdateDescriptionPosition();
     }
@@ -199,7 +199,7 @@ public partial class BotController : UserControl
                 return;
         }
         if (echo)
-            EchoUtil.Echo($"{bot.Bot.Connection.Name} ({bot.Bot.Config.InitialRoutine}) has been issued a command to {cmd}.");
+            EchoUtil.Echo($"{bot.Bot.Connection.Name} ({bot.Bot.Config.InitialRoutine}) has been issued a command to {cmd}.", Runner?.Mode.ToString());
     }
 
     private BotSource<PokeBotState> GetBot()

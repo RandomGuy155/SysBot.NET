@@ -130,7 +130,7 @@ public class RaidBotSWSH(PokeBotState Config, PokeTradeHub<PK8> Hub) : PokeRouti
         }
 
         if (addFriends && !string.IsNullOrEmpty(Settings.FriendCode))
-            EchoUtil.Echo($"Send a friend request to Friend Code **{Settings.FriendCode}** to join in! Friends will be added after this raid.");
+            Echo($"Send a friend request to Friend Code **{Settings.FriendCode}** to join in! Friends will be added after this raid.");
 
         // Invite others, confirm Pokémon and wait
         Log("Inviting others to the raid...");
@@ -141,7 +141,7 @@ public class RaidBotSWSH(PokeBotState Config, PokeTradeHub<PK8> Hub) : PokeRouti
         var linkcodemsg = code < 0 ? "no Link Code" : $"code **{code:0000 0000}**";
 
         string raiddescmsg = string.IsNullOrEmpty(Settings.RaidDescription) ? ((Species)raidBossSpecies).ToString() : Settings.RaidDescription;
-        EchoUtil.Echo($"Raid lobby for {raiddescmsg} is open with {linkcodemsg}.");
+        Echo($"Raid lobby for {raiddescmsg} is open with {linkcodemsg}.");
 
         var timetowait = Settings.TimeToWait * 1_000;
         var timetojoinraid = 175_000 - timetowait;
@@ -155,7 +155,7 @@ public class RaidBotSWSH(PokeBotState Config, PokeTradeHub<PK8> Hub) : PokeRouti
         }
 
         await Task.Delay(1_000, token).ConfigureAwait(false);
-        EchoUtil.Echo($"Raid is starting now with {linkcodemsg}.");
+        Echo($"Raid is starting now with {linkcodemsg}.");
 
         /* Press A and check if we entered a raid.  If other users don't lock in,
            it will automatically start once the timer runs out. If we don't make it into
@@ -213,7 +213,7 @@ public class RaidBotSWSH(PokeBotState Config, PokeTradeHub<PK8> Hub) : PokeRouti
             data = await Connection.ReadBytesAsync(ofs + RaidGenderIncr, 1, token).ConfigureAwait(false);
             var gender = data[0] == 0 ? " (M)" : (data[0] == 1 ? " (F)" : "");
 
-            EchoUtil.Echo($"Player {player + 1} is ready with {shiny}{(Species)dexno}{altformstr}{gender}!");
+            Echo($"Player {player + 1} is ready with {shiny}{(Species)dexno}{altformstr}{gender}!");
         }
 
         return true;

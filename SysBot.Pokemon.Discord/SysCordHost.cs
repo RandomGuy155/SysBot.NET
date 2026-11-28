@@ -23,7 +23,7 @@ public sealed class SysCordHost
 {
     private sealed class GameRoute
     {
-        public required ProgramMode Mode { get; init; }
+        public required GameMode Mode { get; init; }
         public required Type PkmType { get; init; }
         public required DiscordManager Manager { get; init; }
         public required SysCordContext Context { get; init; }
@@ -39,7 +39,7 @@ public sealed class SysCordHost
     private readonly ProgramConfig _config;
     private readonly DiscordSettings _sharedDiscord;
     private readonly DiscordSocketClient _client;
-    private readonly ConcurrentDictionary<ProgramMode, GameRoute> _routes = [];
+    private readonly ConcurrentDictionary<GameMode, GameRoute> _routes = [];
 
     private IApplication? _application;
     private bool _commandsRegistered;
@@ -62,7 +62,7 @@ public sealed class SysCordHost
     public void RegisterRunner<T>(PokeBotRunner<T> runner) where T : PKM, new()
     {
         var mode = runner.Mode;
-        if (mode == ProgramMode.None || _routes.ContainsKey(mode))
+        if (_routes.ContainsKey(mode))
             return;
 
         SysCord<T>.Runner = runner;
@@ -100,7 +100,7 @@ public sealed class SysCordHost
             Services = services,
             RestoreChannels = client =>
             {
-                EchoModule.RestoreChannels(client, hub.Config.Discord);
+                EchoModule.RestoreChannels(client, hub.Config.Discord, mode);
                 LogModule.RestoreLogging(client, hub.Config.Discord, mode);
                 TradeStartModule<T>.RestoreTradeStarting(client, hub.Config.Discord);
             },
@@ -255,7 +255,7 @@ public sealed class SysCordHost
         if (_routes.Count <= 1)
             return;
 
-        var seen = new Dictionary<ulong, ProgramMode>();
+        var seen = new Dictionary<ulong, GameMode>();
         foreach (var mode in _routes.Keys.Order())
         {
             var list = _config.GetGameHubSettings(mode).ChannelWhitelist.List;

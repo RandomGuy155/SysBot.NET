@@ -10,7 +10,7 @@ namespace SysBot.Pokemon.WinForms;
 /// <summary>
 /// Forward logs to a TextBox with optional per-game filtering.
 /// </summary>
-public sealed class TextBoxForwarder(TextBoxBase Box, Func<string, ProgramMode?>? ResolveMode = null) : ILogForwarder
+public sealed class TextBoxForwarder(TextBoxBase Box, Func<string, GameMode?>? ResolveMode = null) : ILogForwarder
 {
     private const int MaxEntries = 500;
 
@@ -18,8 +18,8 @@ public sealed class TextBoxForwarder(TextBoxBase Box, Func<string, ProgramMode?>
     /// Synchronize access to the buffer and TextBox. Only the GUI thread should be writing to the control.
     /// </summary>
     private readonly Lock _logLock = new();
-    private readonly Queue<(ProgramMode? Mode, string Line)> _entries = new();
-    private ProgramMode? _filter;
+    private readonly Queue<(GameMode? Mode, string Line)> _entries = new();
+    private GameMode? _filter;
 
     public void Forward(string message, string identity)
     {
@@ -46,7 +46,7 @@ public sealed class TextBoxForwarder(TextBoxBase Box, Func<string, ProgramMode?>
             UpdateLog(line);
     }
 
-    public void SetFilter(ProgramMode? mode)
+    public void SetFilter(GameMode? mode)
     {
         string snapshot;
         lock (_logLock)

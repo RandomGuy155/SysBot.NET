@@ -713,7 +713,7 @@ public class PokeTradeBotBS(PokeTradeHub<PB8> Hub, PokeBotState Config) : PokeRo
             if (trade.Type == LedyResponseType.AbuseDetected)
             {
                 var msg = $"Found {partner.TrainerName} has been detected for abusing Ledy trades.";
-                EchoUtil.Echo(msg);
+                Echo(msg);
 
                 return (toSend, PokeTradeResult.SuspiciousActivity);
             }

@@ -15,15 +15,15 @@ namespace SysBot.Pokemon.WinForms;
 public sealed partial class Main : Form
 {
     private readonly List<PokeBotState> Bots = [];
-    private readonly Dictionary<ProgramMode, IPokeBotRunner> Runners = [];
-    private readonly ConcurrentDictionary<string, ProgramMode> BotModeLookup = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<GameMode, IPokeBotRunner> Runners = [];
+    private readonly ConcurrentDictionary<string, GameMode> BotModeLookup = new(StringComparer.OrdinalIgnoreCase);
     private readonly ProgramConfig Config = Program.Config;
     private readonly string BaseTitle;
     private TextBoxForwarder? LogForwarder;
     private SysCordHost? DiscordHost;
 
-    private static readonly ProgramMode[] SupportedModes =
-        Enum.GetValues<ProgramMode>().Where(m => m != ProgramMode.None).ToArray();
+    private static readonly GameMode[] SupportedModes =
+        Enum.GetValues<GameMode>().Where(m => m != GameMode.None).ToArray();
 
     public Main()
     {
@@ -71,7 +71,7 @@ public sealed partial class Main : Form
         TC_Logs.ItemSize = new((int)(TC_Logs.ItemSize.Width * factor.Height), (int)(TC_Logs.ItemSize.Height * factor.Width));
     }
 
-    private ProgramMode? ResolveBotMode(string identity)
+    private GameMode? ResolveBotMode(string identity)
     {
         if (string.IsNullOrWhiteSpace(identity))
             return null;
@@ -106,7 +106,7 @@ public sealed partial class Main : Form
 
     private string? ResolveGameTag(string identity) => ResolveBotMode(identity)?.ToString();
 
-    private IPokeBotRunner GetOrCreateRunner(ProgramMode mode)
+    private IPokeBotRunner GetOrCreateRunner(GameMode mode)
     {
         if (Runners.TryGetValue(mode, out var existing))
             return existing;
@@ -114,11 +114,11 @@ public sealed partial class Main : Form
         var hubCfg = Config.BuildHubConfig(mode);
         IPokeBotRunner runner = mode switch
         {
-            ProgramMode.SWSH => new PokeBotRunnerImpl<PK8>(hubCfg, new BotFactory8SWSH()) { Owner = this },
-            ProgramMode.BDSP => new PokeBotRunnerImpl<PB8>(hubCfg, new BotFactory8BS()) { Owner = this },
-            ProgramMode.LA   => new PokeBotRunnerImpl<PA8>(hubCfg, new BotFactory8LA()) { Owner = this },
-            ProgramMode.SV   => new PokeBotRunnerImpl<PK9>(hubCfg, new BotFactory9SV()) { Owner = this },
-            ProgramMode.LZA  => new PokeBotRunnerImpl<PA9>(hubCfg, new BotFactory9LZA()) { Owner = this },
+            GameMode.SWSH => new PokeBotRunnerImpl<PK8>(hubCfg, new BotFactory8SWSH()) { Owner = this },
+            GameMode.BDSP => new PokeBotRunnerImpl<PB8>(hubCfg, new BotFactory8BS()) { Owner = this },
+            GameMode.LA   => new PokeBotRunnerImpl<PA8>(hubCfg, new BotFactory8LA()) { Owner = this },
+            GameMode.SV   => new PokeBotRunnerImpl<PK9>(hubCfg, new BotFactory9SV()) { Owner = this },
+            GameMode.LZA  => new PokeBotRunnerImpl<PA9>(hubCfg, new BotFactory9LZA()) { Owner = this },
             _ => throw new IndexOutOfRangeException("Unsupported mode."),
         };
 
@@ -148,16 +148,16 @@ public sealed partial class Main : Form
         Task.Run(() => host.MainAsync(token, CancellationToken.None));
     }
 
-    private static readonly Dictionary<ProgramMode, Func<PokeRoutineType, bool>> RoutineSupport = new()
+    private static readonly Dictionary<GameMode, Func<PokeRoutineType, bool>> RoutineSupport = new()
     {
-        [ProgramMode.SWSH] = new BotFactory8SWSH().SupportsRoutine,
-        [ProgramMode.BDSP] = new BotFactory8BS().SupportsRoutine,
-        [ProgramMode.LA]   = new BotFactory8LA().SupportsRoutine,
-        [ProgramMode.SV]   = new BotFactory9SV().SupportsRoutine,
-        [ProgramMode.LZA]  = new BotFactory9LZA().SupportsRoutine,
+        [GameMode.SWSH] = new BotFactory8SWSH().SupportsRoutine,
+        [GameMode.BDSP] = new BotFactory8BS().SupportsRoutine,
+        [GameMode.LA]   = new BotFactory8LA().SupportsRoutine,
+        [GameMode.SV]   = new BotFactory9SV().SupportsRoutine,
+        [GameMode.LZA]  = new BotFactory9LZA().SupportsRoutine,
     };
 
-    private static bool SupportsRoutine(ProgramMode mode, PokeRoutineType routine)
+    private static bool SupportsRoutine(GameMode mode, PokeRoutineType routine)
         => RoutineSupport.TryGetValue(mode, out var check) && check(routine);
 
     private void UpdateWindowTitle()
@@ -199,9 +199,9 @@ public sealed partial class Main : Form
         CB_Game.DisplayMember = nameof(ComboItem.Text);
         CB_Game.ValueMember = nameof(ComboItem.Value);
         CB_Game.DataSource = games;
-        CB_Game.SelectedValue = (int)(Config.Mode != ProgramMode.None ? Config.Mode : ProgramMode.LZA);
+        CB_Game.SelectedValue = (int)Config.Mode;
 
-        PopulateRoutines((ProgramMode)WinFormsUtil.GetIndex(CB_Game));
+        PopulateRoutines((GameMode)WinFormsUtil.GetIndex(CB_Game));
 
         PopulateVerticalTabs(TC_Hub, "Shared", PG_Hub, []);
         PG_Hub.SelectedObject = new SharedHubView(Config);
@@ -212,7 +212,7 @@ public sealed partial class Main : Form
         PopulateVerticalTabs(TC_Logs, "All", RTB_Logs, []);
     }
 
-    private ProgramMode[] GetActiveModes() =>
+    private GameMode[] GetActiveModes() =>
         SupportedModes.Where(mode =>
             Runners.ContainsKey(mode)
             || Bots.Any(b => Config.GetEffectiveMode(b) == mode)).ToArray();
@@ -226,7 +226,7 @@ public sealed partial class Main : Form
             TC_Logs_SelectedIndexChanged(TC_Logs, EventArgs.Empty);
     }
 
-    private static bool PopulateVerticalTabs(TabControl tc, string defaultLabel, Control sharedContent, ProgramMode[] modes)
+    private static bool PopulateVerticalTabs(TabControl tc, string defaultLabel, Control sharedContent, GameMode[] modes)
     {
         var expectedCount = 1 + modes.Length;
         if (tc.TabPages.Count == expectedCount)
@@ -266,7 +266,7 @@ public sealed partial class Main : Form
         return true;
     }
 
-    private void PopulateRoutines(ProgramMode mode)
+    private void PopulateRoutines(GameMode mode)
     {
         var previous = CB_Routine.SelectedValue is int v ? (PokeRoutineType)v : PokeRoutineType.FlexTrade;
         var routines = Enum.GetValues<PokeRoutineType>().Where(z => SupportsRoutine(mode, z)).ToArray();
@@ -329,7 +329,7 @@ public sealed partial class Main : Form
         SaveCurrentConfig();
 
         LogUtil.LogInfo("Starting all bots...");
-        if (Runners.Count == 0 && Config.Mode != ProgramMode.None)
+        if (Runners.Count == 0)
         {
             GetOrCreateRunner(Config.Mode);
             RefreshGameTabs();
@@ -486,7 +486,7 @@ public sealed partial class Main : Form
         var cfg = BotConfigUtil.GetConfig<SwitchConnectionConfig>(ip, port);
         cfg.Protocol = (SwitchProtocol)WinFormsUtil.GetIndex(CB_Protocol);
 
-        var mode = (ProgramMode)WinFormsUtil.GetIndex(CB_Game);
+        var mode = (GameMode)WinFormsUtil.GetIndex(CB_Game);
         var pk = new PokeBotState { Connection = cfg, Mode = mode };
         var type = (PokeRoutineType)WinFormsUtil.GetIndex(CB_Routine);
         pk.Initialize(type);
@@ -514,9 +514,7 @@ public sealed partial class Main : Form
         if (CB_Game.SelectedValue is not int val)
             return;
 
-        var mode = (ProgramMode)val;
-        if (mode != ProgramMode.None)
-            PopulateRoutines(mode);
+        PopulateRoutines((GameMode)val);
     }
 
     private void TC_Hub_SelectedIndexChanged(object? sender, EventArgs e)
@@ -529,7 +527,7 @@ public sealed partial class Main : Form
 
         PG_Hub.SelectedObject = val == 0
             ? new SharedHubView(Config)
-            : GameHubView.Create((ProgramMode)val, Config);
+            : GameHubView.Create((GameMode)val, Config);
     }
 
     private void TC_Logs_SelectedIndexChanged(object? sender, EventArgs e)
@@ -540,7 +538,7 @@ public sealed partial class Main : Form
         if (!tab.Controls.Contains(RTB_Logs))
             tab.Controls.Add(RTB_Logs);
 
-        LogForwarder?.SetFilter(val == 0 ? null : (ProgramMode)val);
+        LogForwarder?.SetFilter(val == 0 ? null : (GameMode)val);
     }
 
     private void PG_Hub_PropertyValueChanged(object? s, PropertyValueChangedEventArgs e)

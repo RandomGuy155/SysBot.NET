@@ -826,7 +826,7 @@ public class PokeTradeBotLZA(PokeTradeHub<PA9> Hub, PokeBotState Config) : PokeR
                     msg += $"\nID: {partner.TrainerOnlineID}";
                 if (!string.IsNullOrWhiteSpace(AbuseSettings.LedyAbuseEchoMention))
                     msg = $"{AbuseSettings.LedyAbuseEchoMention} {msg}";
-                EchoUtil.Echo(msg);
+                Echo(msg);
 
                 return (toSend, PokeTradeResult.SuspiciousActivity);
             }

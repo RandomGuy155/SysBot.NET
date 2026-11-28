@@ -10,8 +10,8 @@ namespace SysBot.Pokemon.Discord;
 [Group("log", "Logging commands.")]
 public class LogModule(SysCordContext cord) : SudoModuleBase
 {
-    private static readonly Dictionary<(ulong ChannelId, ProgramMode Mode), ChannelLogger> Channels = [];
-    public static void RestoreLogging(DiscordSocketClient discord, DiscordSettings settings, ProgramMode mode = ProgramMode.None)
+    private static readonly Dictionary<(ulong ChannelId, GameMode Mode), ChannelLogger> Channels = [];
+    public static void RestoreLogging(DiscordSocketClient discord, DiscordSettings settings, GameMode mode)
     {
         int count = 0;
         foreach (var channelAccess in settings.LoggingChannels)
@@ -53,7 +53,7 @@ public class LogModule(SysCordContext cord) : SudoModuleBase
         await RespondAsync("Added logging output to this channel!").ConfigureAwait(false);
     }
 
-    private static void AddLogChannel(ISocketMessageChannel channel, ulong channelId, ProgramMode mode)
+    private static void AddLogChannel(ISocketMessageChannel channel, ulong channelId, GameMode mode)
     {
         var logger = new ChannelLogger(channel, mode);
         LogUtil.Forwarders.Add(logger);

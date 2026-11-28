@@ -1,4 +1,4 @@
-﻿using System.ComponentModel;
+using System.ComponentModel;
 using System.Text.Json.Serialization;
 
 // ReSharper disable AutoPropertyCanBeMadeGetOnly.Global
@@ -13,7 +13,7 @@ public sealed class PokeTradeHubConfig : BaseConfig
 
     [Browsable(false)]
     [JsonIgnore]
-    public ProgramMode Mode { get; set; }
+    public GameMode Mode { get; set; }
 
     [Browsable(false)]
     public override bool Shuffled => Distribution.Shuffled;

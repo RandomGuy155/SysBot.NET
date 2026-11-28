@@ -113,16 +113,16 @@ public static class BotContainer
         prog.Hub.Mode = prog.Mode;
         return prog.Mode switch
         {
-            ProgramMode.SWSH => new PokeBotRunnerImpl<PK8>(prog.Hub, new BotFactory8SWSH()),
-            ProgramMode.BDSP => new PokeBotRunnerImpl<PB8>(prog.Hub, new BotFactory8BS()),
-            ProgramMode.LA   => new PokeBotRunnerImpl<PA8>(prog.Hub, new BotFactory8LA()),
-            ProgramMode.SV   => new PokeBotRunnerImpl<PK9>(prog.Hub, new BotFactory9SV()),
-            ProgramMode.LZA  => new PokeBotRunnerImpl<PA9>(prog.Hub, new BotFactory9LZA()),
+            GameMode.SWSH => new PokeBotRunnerImpl<PK8>(prog.Hub, new BotFactory8SWSH()),
+            GameMode.BDSP => new PokeBotRunnerImpl<PB8>(prog.Hub, new BotFactory8BS()),
+            GameMode.LA   => new PokeBotRunnerImpl<PA8>(prog.Hub, new BotFactory8LA()),
+            GameMode.SV   => new PokeBotRunnerImpl<PK9>(prog.Hub, new BotFactory9SV()),
+            GameMode.LZA  => new PokeBotRunnerImpl<PA9>(prog.Hub, new BotFactory9LZA()),
             _ => throw new IndexOutOfRangeException("Unsupported mode."),
         };
     }
 
-    private static bool AddBot(IPokeBotRunner env, PokeBotState cfg, ProgramMode mode)
+    private static bool AddBot(IPokeBotRunner env, PokeBotState cfg, GameMode mode)
     {
         if (!cfg.IsValid())
         {

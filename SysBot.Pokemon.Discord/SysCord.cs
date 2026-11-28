@@ -207,7 +207,7 @@ public sealed class SysCord<T> where T : PKM, new()
             return;
 
         // Restore Echoes
-        EchoModule.RestoreChannels(_client, cfg);
+        EchoModule.RestoreChannels(_client, cfg, Hub.Config.Mode);
 
         // Restore Logging
         LogModule.RestoreLogging(_client, cfg, Hub.Config.Mode);

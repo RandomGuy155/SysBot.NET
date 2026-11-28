@@ -14,13 +14,13 @@ namespace SysBot.Pokemon.Discord;
 
 internal static class SysCordUtil
 {
-    public static Task Log(LogMessage msg, ProgramMode? mode)
+    public static Task Log(LogMessage msg, GameMode? mode)
     {
         var text = $"[{msg.Severity,8}] {msg.Source}: {msg.Message} {msg.Exception}";
         Console.ForegroundColor = GetTextColor(msg.Severity);
         Console.WriteLine($"{DateTime.Now,-19} {text}");
         Console.ResetColor();
-        var gameTag = mode is { } m && m != ProgramMode.None ? m.ToString() : null;
+        var gameTag = mode?.ToString();
         LogUtil.LogText($"SysCord: {text}", gameTag);
         return Task.CompletedTask;
     }
@@ -36,7 +36,7 @@ internal static class SysCordUtil
         _ => Console.ForegroundColor,
     };
 
-    public static Task LogInteractionStart(SocketInteractionContext context, ulong channelId, ProgramMode? mode)
+    public static Task LogInteractionStart(SocketInteractionContext context, ulong channelId, GameMode? mode)
     {
         var interaction = context.Interaction;
         var (type, identity) = interaction switch

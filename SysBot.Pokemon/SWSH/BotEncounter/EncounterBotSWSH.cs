@@ -93,7 +93,7 @@ public abstract class EncounterBotSWSH : PokeRoutineExecutor8SWSH, IEncounterBot
 
         if (!string.IsNullOrWhiteSpace(Hub.Config.StopConditions.MatchFoundEchoMention))
             msg = $"{Hub.Config.StopConditions.MatchFoundEchoMention} {msg}";
-        EchoUtil.Echo(msg);
+        Echo(msg);
 
         if (mode == ContinueAfterMatch.StopExit)
             return true;

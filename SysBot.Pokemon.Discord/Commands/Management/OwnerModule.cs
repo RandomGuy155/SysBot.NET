@@ -33,11 +33,11 @@ public class OwnerModule(SysCordContext cord) : InteractionModuleBase<SocketInte
     [CommandContextType(InteractionContextType.Guild)]
     public async Task AddChannel(
         [Summary(nameof(game), "Game to route commands from this channel to. Leave blank for the current game.")]
-        [Choice("SWSH", (int)ProgramMode.SWSH)]
-        [Choice("BDSP", (int)ProgramMode.BDSP)]
-        [Choice("LA", (int)ProgramMode.LA)]
-        [Choice("SV", (int)ProgramMode.SV)]
-        [Choice("LZA", (int)ProgramMode.LZA)]
+        [Choice("SWSH", (int)GameMode.SWSH)]
+        [Choice("BDSP", (int)GameMode.BDSP)]
+        [Choice("LA", (int)GameMode.LA)]
+        [Choice("SV", (int)GameMode.SV)]
+        [Choice("LZA", (int)GameMode.LZA)]
         int? game = null)
     {
         var c = Context.Interaction.Channel;
@@ -45,9 +45,7 @@ public class OwnerModule(SysCordContext cord) : InteractionModuleBase<SocketInte
 
         if (cord.ProgramConfig is { } prog)
         {
-            var targetMode = game is { } g && g != (int)ProgramMode.None
-                ? (ProgramMode)g
-                : (cord.HubConfig.Mode != ProgramMode.None ? cord.HubConfig.Mode : prog.Mode);
+            var targetMode = game is { } g ? (GameMode)g : cord.HubConfig.Mode;
 
             // A channel can only belong to one game at a time; ask before taking it from another game.
             var assignedElsewhere = prog.GameHubs
@@ -106,7 +104,7 @@ public class OwnerModule(SysCordContext cord) : InteractionModuleBase<SocketInte
             return;
         }
 
-        var targetMode = (ProgramMode)mode;
+        var targetMode = (GameMode)mode;
         var name = Context.Channel.Id == id ? Context.Channel.Name : channelId;
         var movedFrom = AssignChannel(prog, id, name, targetMode);
 
@@ -120,9 +118,9 @@ public class OwnerModule(SysCordContext cord) : InteractionModuleBase<SocketInte
     /// Assigns the channel to <paramref name="targetMode"/>, removing it from any other game's whitelist.
     /// </summary>
     /// <returns>The games the channel was removed from.</returns>
-    private List<ProgramMode> AssignChannel(ProgramConfig prog, ulong channelId, string channelName, ProgramMode targetMode)
+    private List<GameMode> AssignChannel(ProgramConfig prog, ulong channelId, string channelName, GameMode targetMode)
     {
-        var movedFrom = new List<ProgramMode>();
+        var movedFrom = new List<GameMode>();
         foreach (var (otherMode, settings) in prog.GameHubs)
         {
             if (otherMode != targetMode && settings.ChannelWhitelist.RemoveAll(z => z.ID == channelId) > 0)
@@ -140,7 +138,7 @@ public class OwnerModule(SysCordContext cord) : InteractionModuleBase<SocketInte
         var channelId = Context.Interaction.Channel.Id;
         if (cord.ProgramConfig is { } prog)
         {
-            var removedFrom = new List<ProgramMode>();
+            var removedFrom = new List<GameMode>();
             foreach (var (mode, settings) in prog.GameHubs)
             {
                 if (settings.ChannelWhitelist.RemoveAll(z => z.ID == channelId) > 0)

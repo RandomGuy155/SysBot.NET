@@ -82,6 +82,7 @@ public class QueueTests
     private class MockExecutor<T>(PokeBotState Config) : PokeRoutineExecutor<T>(Config)
         where T : PKM, new()
     {
+        protected override GameMode Mode => GameMode.SWSH;
         public override Task MainLoop(CancellationToken token) => Task.CompletedTask;
         public override void SoftStop() { }
         public override Task HardStop() => Task.CompletedTask;

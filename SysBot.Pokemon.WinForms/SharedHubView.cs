@@ -65,30 +65,30 @@ internal static class GameSettingsFilter
         nameof(TradeSettings.CompletedSeedChecks),
     ];
 
-    public static bool IsTimingVisible(ProgramMode mode, string propName)
+    public static bool IsTimingVisible(GameMode mode, string propName)
     {
         if (SwshOnlyTimings.Contains(propName))
-            return mode == ProgramMode.SWSH;
+            return mode == GameMode.SWSH;
         if (BdspOnlyTimings.Contains(propName))
-            return mode == ProgramMode.BDSP;
+            return mode == GameMode.BDSP;
         if (propName == nameof(TimingSettings.ExtraTimeLoadPortal))
-            return mode == ProgramMode.SV;
+            return mode == GameMode.SV;
         if (propName == nameof(TimingSettings.ExtraTimeConnectOnline))
-            return mode is ProgramMode.SWSH or ProgramMode.SV;
+            return mode is GameMode.SWSH or GameMode.SV;
         return true;
     }
 
-    public static bool IsDistributionVisible(ProgramMode mode, string propName)
+    public static bool IsDistributionVisible(GameMode mode, string propName)
     {
         if (propName == nameof(DistributionSettings.RemainInUnionRoomBDSP))
-            return mode == ProgramMode.BDSP;
+            return mode == GameMode.BDSP;
         return true;
     }
 
-    public static bool IsQueueVisible(ProgramMode mode, string propName)
+    public static bool IsQueueVisible(GameMode mode, string propName)
     {
         if (SwshOnlyQueues.Contains(propName))
-            return mode == ProgramMode.SWSH;
+            return mode == GameMode.SWSH;
         return true;
     }
 
@@ -119,12 +119,12 @@ public sealed class SharedHubView(ProgramConfig config)
     private PokeTradeHubConfig Hub => config.Hub;
 
     [Category(Operation), Description("Default game mode used for legacy bots without an explicit game mode.")]
-    public ProgramMode DefaultMode
+    public GameMode DefaultMode
     {
         get => config.Mode;
         set
         {
-            if (value != ProgramMode.None)
+            if (value != GameMode.None)
                 config.Mode = value;
         }
     }
@@ -337,16 +337,16 @@ public sealed class SharedDiscordView(DiscordSettings discord)
 /// PropertyGrid projection for a per-game tab filtering <see cref="TimingSettings"/>,
 /// <see cref="DistributionSettings"/>, and <see cref="QueueSettings"/> to only properties used by that game.
 /// </summary>
-public class GameHubView(ProgramMode mode, GameHubSettings game)
+public class GameHubView(GameMode mode, GameHubSettings game)
 {
     protected const string Discord = nameof(Discord);
     protected const string Operation = nameof(Operation);
     protected const string BotTrade = nameof(BotTrade);
 
-    public static object Create(ProgramMode mode, ProgramConfig config)
+    public static object Create(GameMode mode, ProgramConfig config)
     {
         var game = config.GetGameHubSettings(mode);
-        return mode == ProgramMode.SWSH
+        return mode == GameMode.SWSH
             ? new SwshHubView(game, config.Hub)
             : new GameHubView(mode, game);
     }
@@ -397,7 +397,7 @@ public class GameHubView(ProgramMode mode, GameHubSettings game)
 /// PropertyGrid projection for the SWSH tab adding SWSH-only Encounter, Raid, StopCondition,
 /// SeedCheck, BattleVersion, RoleCanSeedCheck, and Surprise/SeedCheck count settings.
 /// </summary>
-public sealed class SwshHubView(GameHubSettings game, PokeTradeHubConfig hub) : GameHubView(ProgramMode.SWSH, game)
+public sealed class SwshHubView(GameHubSettings game, PokeTradeHubConfig hub) : GameHubView(GameMode.SWSH, game)
 {
     private const string BotEncounter = nameof(BotEncounter);
     private const string SwshSpecific = "SWSH";

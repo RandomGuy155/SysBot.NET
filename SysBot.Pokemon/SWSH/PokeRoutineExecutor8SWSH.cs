@@ -16,6 +16,7 @@ namespace SysBot.Pokemon;
 /// </summary>
 public abstract class PokeRoutineExecutor8SWSH(PokeBotState Config) : PokeRoutineExecutor<PK8>(Config)
 {
+    protected override GameMode Mode => GameMode.SWSH;
     protected PokeDataOffsetsSWSH Offsets { get; } = new();
 
     private static uint GetBoxSlotOffset(int box, int slot) => BoxStartOffset + (uint)(BoxFormatSlotSize * ((30 * box) + slot));

@@ -887,7 +887,7 @@ public class PokeTradeBotSV(PokeTradeHub<PK9> Hub, PokeBotState Config) : PokeRo
                     msg += $"\nID: {partner.TrainerOnlineID}";
                 if (!string.IsNullOrWhiteSpace(AbuseSettings.LedyAbuseEchoMention))
                     msg = $"{AbuseSettings.LedyAbuseEchoMention} {msg}";
-                EchoUtil.Echo(msg);
+                Echo(msg);
 
                 return (toSend, PokeTradeResult.SuspiciousActivity);
             }

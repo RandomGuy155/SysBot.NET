@@ -15,9 +15,6 @@ public abstract class PokeRoutineExecutorBase(IConsoleBotManaged<IConsoleConnect
     public EntityContext Context { get; private set; }
     public string InGameName { get; private set; } = "SysBot.NET";
 
-    public static readonly TrackedUserLog PreviousUsers = new();
-    public static readonly TrackedUserLog PreviousUsersDistribution = new();
-
     public override string GetSummary()
     {
         var current = Config.CurrentRoutineType;

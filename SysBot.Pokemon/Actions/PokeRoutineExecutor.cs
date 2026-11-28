@@ -16,6 +16,9 @@ public abstract class PokeRoutineExecutor<T>(IConsoleBotManaged<IConsoleConnecti
     protected abstract GameMode Mode { get; }
     protected void Echo(string message) => EchoUtil.Echo(message, Mode.ToString());
 
+    public static readonly TrackedUserLog PreviousUsers = new();
+    public static readonly TrackedUserLog PreviousUsersDistribution = new();
+
     public abstract Task<T> ReadPokemon(ulong offset, CancellationToken token);
     public abstract Task<T> ReadPokemon(ulong offset, int size, CancellationToken token);
     public abstract Task<T> ReadPokemonPointer(IEnumerable<long> jumps, int size, CancellationToken token);

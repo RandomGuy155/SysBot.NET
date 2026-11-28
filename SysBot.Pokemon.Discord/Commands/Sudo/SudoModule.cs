@@ -101,8 +101,8 @@ public class SudoModule<T> : SudoModuleBase where T : PKM, new()
     {
         foreach (var id in GetIDs(ids))
         {
-            PokeRoutineExecutorBase.PreviousUsers.RemoveAllNID(id);
-            PokeRoutineExecutorBase.PreviousUsersDistribution.RemoveAllNID(id);
+            PokeRoutineExecutor<T>.PreviousUsers.RemoveAllNID(id);
+            PokeRoutineExecutor<T>.PreviousUsersDistribution.RemoveAllNID(id);
         }
         await RespondAsync("Done.").ConfigureAwait(false);
     }
@@ -111,11 +111,11 @@ public class SudoModule<T> : SudoModuleBase where T : PKM, new()
     public async Task PrintPreviousUsers()
     {
         var messages = new List<string>();
-        List<string> lines = [.. PokeRoutineExecutorBase.PreviousUsers.Summarize()];
+        List<string> lines = [.. PokeRoutineExecutor<T>.PreviousUsers.Summarize()];
         if (lines.Count != 0)
             messages.Add(Format.Code("Previous Users:\n" + string.Join('\n', lines)));
 
-        lines = [.. PokeRoutineExecutorBase.PreviousUsersDistribution.Summarize()];
+        lines = [.. PokeRoutineExecutor<T>.PreviousUsersDistribution.Summarize()];
         if (lines.Count != 0)
             messages.Add(Format.Code("Previous Distribution Users:\n" + string.Join('\n', lines)));
 
